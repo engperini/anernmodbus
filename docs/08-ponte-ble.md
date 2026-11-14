@@ -1,7 +1,12 @@
 # 08 — Ponte BLE → MQTT
 
-O código da ponte (`/home/pi/solar-rwb1-ble/bridge.py`, `settings_map.py`, `control_engine`) foi perdido na versão final, mas **a versão de 13/11 (leitura com CRC válido, MQTT online) continua no Pi**. Comece por ela.
+O código da ponte está em [`bridge/`](../bridge/) — **versão de 13/11/2026 recuperada** (ver `bridge/RECUPERACAO.md`):
 
+- **Base pública:** [Jpedrotas/easun-rwb1-esphome](https://github.com/Jpedrotas/easun-rwb1-esphome) — protocolo BLE do dongle RWB1 (`tools/rwb1_ble_protocol.py`, `tools/ble_modbus_read.py`) e componente ESPHome.
+- **Alterações do Hermes** reaplicadas a partir do histórico do agente: `bridge.py`, `settings_map.py`, testes, painel e serviço.
+- Arquivos reconstruídos com o mesmo tamanho exato dos originais; 11 testes passando.
+
+A versão final de 14/11 (motor de escrita com travas, decodificação de 4501/4535/4553, Grupos A–D) foi perdida e está especificada abaixo e em `07-home-assistant.md`.
 ## O que a ponte faz
 
 1. Conecta por BLE ao dongle RWB1.

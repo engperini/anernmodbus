@@ -34,7 +34,8 @@ Registro completo da engenharia reversa e da integração local do inversor **An
 | [docs/05-codigos-falha-aviso.md](docs/05-codigos-falha-aviso.md) | Códigos de falha/aviso do inversor e da bateria |
 | [docs/06-bms.md](docs/06-bms.md) | Telas do BMS no display, diferenças de firmware, saúde da bateria |
 | [docs/07-home-assistant.md](docs/07-home-assistant.md) | **Especificação completa do painel e dos controles** |
-| [docs/08-ponte-ble.md](docs/08-ponte-ble.md) | Requisitos da ponte BLE → MQTT, resiliência, discovery |
+| [docs/08-ponte-ble.md](docs/08-ponte-ble.md) | Ponte BLE → MQTT: origem do código, requisitos, resiliência |
+| [bridge/](bridge/) | **Código da ponte** (versão de 13/11 recuperada) |
 | [docs/09-historico.md](docs/09-historico.md) | Linha do tempo da investigação e lições |
 | [docs/10-pendencias.md](docs/10-pendencias.md) | O que ainda está em aberto e como resolver |
 | [docs/11-incidente-perda-dados.md](docs/11-incidente-perda-dados.md) | Perda de dados por queda de energia / cartão SD e prevenção |

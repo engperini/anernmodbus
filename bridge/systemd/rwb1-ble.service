@@ -1,0 +1,15 @@
+[Unit]
+Description=RWB1 BLE read-only telemetry to Home Assistant MQTT
+After=default.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/pi/solar-rwb1-ble
+EnvironmentFile=/home/pi/solar-rwb1-ble/rwb1.env
+ExecStart=/home/pi/solar-rwb1-ble/.venv/bin/python /home/pi/solar-rwb1-ble/bridge.py --interval 30
+Restart=on-failure
+RestartSec=15
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

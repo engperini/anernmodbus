@@ -4,7 +4,7 @@ Registro completo da engenharia reversa e da integração local do inversor **An
 
 > Objetivo deste repositório: **não perder o conhecimento**. Tudo o que foi descoberto, confirmado e testado está aqui, com as evidências (prints do app, do display, do manual e do painel). Com este dossiê é possível reconstruir a ponte e o painel do zero.
 
-> ⚠️ Mantenha este repositório **privado**. As imagens da pasta `images/02-app-sunhouse` mostram o número de série do dongle. Não há senhas, tokens nem endereços externos aqui.
+> Repositório público: não há senhas, tokens, números de série do dongle nem endereços de rede aqui, e as fotos estão sem metadados (EXIF/GPS).
 
 ---
 

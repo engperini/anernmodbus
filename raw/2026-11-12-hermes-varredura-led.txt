@@ -1,0 +1,72 @@
+artbot:
+Reiniciei somente o Bluetooth, como você autorizou. Após o reinício, o adaptador ficou desligado; religuei-o. A ponte voltou a fazer leituras BLE com CRC válido e o MQTT está online. HA/Mosquitto não foram reiniciados.
+
+Você tinha razão sobre o teste: fiz a comparação completa OFF inicial → ON → OFF final. Estes são os valores brutos lidos individualmente com Modbus 0x03, escravo 5:
+
+Reg.   OFF  ON   OFF final
+5000    —    —      —
+5001    0    0      0
+5002    0    0      0
+5003    0    0      0
+5004    1    1      1
+5005    0    0      0
+5006    0    0      0
+5007    1    1      1
+5008    0    0      0
+5009    0    0      0
+5010    1    1      1
+5011    0    0      0
+5012    0    0      0
+5013    0    0      0
+5014    0    0      0
+5015    0    0      0
+5016    0    0      0
+5017    2    2      2
+5018    2    2      2
+5019    1    1      1
+5020    6    6      6
+5021    1    1      1
+5022   50   50     50
+5023  220  220    220
+5024    2    2      2
+5025  245  245    245
+5026  270  270    270
+5027  284  284    284
+5028  274  274    274
+5029  240  240    240
+5030  270  270    270
+5031   60   60     60
+5032  120  120    120
+5033   30   30     30
+5034 1137 1137   1137
+5035    7    7      7
+5036   10   10     10
+5037    0    0      0
+5038   36   39     35
+5039    —    —      —
+5040    —    —      —
+
+
+— significa resposta curta inesperada (05 03 82 E1 50), não valor zero.
+
+Conclusão dos testes: 38 dos 41 endereços deram valor. Só o 5038 variou, mas o valor OFF foi 36 na primeira leitura e 35 na última; portanto não identifiquei nele um comando ON/OFF seguro. O 5036, apontado como LED em outro modelo, ficou 10 nos dois estados. A tentativa de ler 5000–5040 em um bloco também retornou resposta inesperada; as leituras individuais acima funcionaram. Todas foram leituras; não enviei escrita local nem criei um botão que pudesse alterar o registrador errado.
+
+Sua hipótese faz sentido: 5038 varia mesmo com o LED desligado, então vou tratá-lo como possível temperatura, não como controle.
+
+Ampliei a varredura somente de leitura. A referência com a luz OFF ficou salva: 4990–4999 e 5041–5060 não responderam com valores; 4522–4541 retornaram 20 valores que podemos comparar. A ponte já voltou a produzir leitura BLE válida e está online.
+
+Ligue agora o LED pelo painel e me avise quando estiver aceso. Vou ler os mesmos registradores e comparar; depois faremos uma segunda leitura com ele OFF para separar o efeito da luz das variações naturais, como a temperatura.
+
+O Bluetooth voltou, mas a sessão BLE caiu durante a varredura e a tentativa seguinte excedeu o tempo limite. Vou testar uma leitura em bloco curta dos 20 endereços que responderam na referência OFF; isso evita dezenas de requisições individuais. A ponte foi religada após as tentativas.
+
+Reiniciei o Bluetooth e soltei uma conexão BLE que havia ficado presa. Consegui ler com o LED ON: os 20 registradores 4522–4541 ficaram idênticos à referência com o LED OFF. Portanto, essa faixa também não mostra o estado da luz. A ponte voltou a fazer leituras válidas e está online.
+
+Ainda não encontramos outro registrador que acompanhe o LED; não vou atribuir esse papel a um valor por coincidência. Pode desligar o LED agora. Para continuar a busca, preciso investigar outras faixas ou a comunicação do comando real, sempre com leituras antes de qualquer tentativa de escrita.
+
+Você tem razão. Pesquisei sem pedir novos testes.
+
+O candidato mais forte para o LED decorativo é rgbOnAndOffControlSetting, com 0=OFF e 1=ON. Ele aparece como “LED pattern switch” na configuração Siseli publicada e, no seu Anern, já tivemos uma confirmação física de ligar a luz por esse campo na nuvem. Isso identifica o controle, não seu endereço Modbus local.
+
+O único endereço Modbus publicado que encontrei para “LED pattern” é 5036 no mapa de um EASUN SMH III. Mas no seu Anern ele retornou 10 tanto OFF quanto ON; portanto não é um candidato confiável para escrever 0/1 neste aparelho. O 5004 encontrado em outros mapas controla a retroiluminação do display, não o LED decorativo.
+
+Conclusão honesta: a Internet forneceu um provável nome de comando (rgbOnAndOffControlSetting), mas não encontrei outro registrador local verificável para o AN-SCI-ECO-4200. Não vou sugerir uma escrita em endereço inventado nem pedir que você repita a troca do LED.

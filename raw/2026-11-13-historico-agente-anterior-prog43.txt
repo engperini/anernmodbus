@@ -1,0 +1,94 @@
+### Histórico técnico consolidado — Projeto Solar Casa Híbrida
+
+Atualizado em 13/11/2026 | Inversor Anern AN-SCI-ECO-4200 — 4,2 kW / 24 V
+
+Este é o histórico das divergências identificadas entre o manual, o firmware e o comportamento real do nosso inversor, incluindo a confirmação definitiva de comunicação BMS com a função 43 em `48`.
+
+### 1\. Divergências entre manual e equipamento
+
+| Parâmetro               | Manual / documentação                                 | Observação real                                             |
+| ----------------------- | ----------------------------------------------------- | ----------------------------------------------------------- |
+| Função 43               | Seleção de protocolo BMS                              | Aparece 48, valor ajustável                                 |
+| Função 43 — comunicação | Documentação não esclarece o comportamento encontrado | BMS funcionando com 48, sem alteração                       |
+| Função 01               | Prioridades de alimentação distintas                  | MKS e SUB apresentaram comportamento equivalente nos testes |
+| Função 37               | Modo híbrido HYd                                      | Encontrada em OFF; HYd não validado                         |
+| MPPT — tensão           | 60–500 Vcc na tabela técnica                          | Etiqueta indica 240–450 Vcc                                 |
+| MPPT — limite superior  | Página 8: 450 V; página 39: 500 V                     | Inconsistência dentro do próprio manual                     |
+| Frequência              | 50 Hz na tabela; 50/60 Hz na seção Grid-Tie           | Divergência documental ainda não resolvida                  |
+| Operação sem bateria    | Descrição insuficiente para nosso cenário             | Partida e alimentação de cargas confirmadas com FV          |
+
+### 2\. Histórico dos testes operacionais
+
+Partida sem bateria
+
+O inversor iniciou automaticamente com geração fotovoltaica, mesmo sem bateria conectada.
+
+Funcionamento sem rede CA
+
+Com a rede desligada, a geração FV conseguiu alimentar as cargas conectadas.
+
+Retorno da rede
+
+Ao religar a rede CA, o inversor retornou ao estado `bP` (bypass).
+
+Comparação `MKS` versus `SUB`
+
+Os dois modos da função 01 não apresentaram diferenças observáveis nas condições ensaiadas. Isso não significa que sejam equivalentes em todas as condições.
+
+Modo híbrido `HYd`
+
+Identificamos a função 37 em `OFF`, mas não concluímos um teste operacional com `HYd`.
+
+### 3\. Investigação da função 43 e comunicação BMS
+
+Inicialmente, identificamos que a função 43 não correspondia claramente à descrição do manual.
+
+Primeira observação: o equipamento mostrava `48` e permitia alterar esse número pelas teclas.
+
+Pesquisa externa: encontramos relatos de outros inversores Anern nos quais a função 43 apresentava `48` ou `49`. Um usuário relatou comunicação RS485 com BMS JK após utilizar `49`. Entretanto, não havia comprovação de que o firmware fosse idêntico ao nosso.
+
+Teste decisivo no nosso equipamento: você confirmou que a bateria já está comunicando com o inversor, sem modificar a função 43.
+
+Resultado confirmado — 13/11/2026
+
+Validado
+
+Função 43
+
+### 48
+
+Valor original mantido
+
+Comunicação BMS
+
+Funcional
+
+Sem alteração do parâmetro
+
+SOC (%) da bateria exibido corretamente
+
+Limites de carga reconhecidos automaticamente
+
+Comunicação estabelecida mantendo `48`
+
+### 4\. Conclusão técnica consolidada
+
+A comunicação BMS do nosso Anern ECO 4,2 kW está funcionando corretamente com a função 43 configurada em `48`.
+
+Isso demonstra que:
+
+* Não é necessário alterar o parâmetro para `49`.
+
+* A comunicação BMS está efetivamente ativa, não sendo apenas detecção de tensão da bateria.
+
+* O equipamento recebe informações de SOC e limites de carga do BMS.
+
+* A finalidade exata da função 43 continua sem comprovação documental: pode representar endereço, código de protocolo ou outra configuração específica do firmware.
+
+* As divergências identificadas exigem que as configurações do equipamento real tenham prioridade sobre interpretações não verificadas do manual.
+
+Configuração de referência do projeto: função 43 = `48`, manter inalterada.
+
+Para futuras alterações, especialmente a instalação de uma segunda bateria Felicity em paralelo, precisamos verificar o gerenciamento de comunicação entre os BMS e o inversor. O funcionamento atual com uma bateria não comprova automaticamente a comunicação correta de duas baterias.
+
+Este é nosso histórico técnico consolidado até agora, distinguindo o que efetivamente testamos daquilo que permanece pendente de validação.

@@ -1,0 +1,65 @@
+registrador,valor_dump_2026-11-14_11h27,nome,unidade_ou_codigos,escrita_FC06,status,nota
+4501,4,Modo de operação,enum,,parcial,"0 Ligando,1 Espera,2 Rede,3 Bateria,4 Bypass,5 Carregando,6 Falha (família SMG/Anenji); 3 e 4 observados"
+4502,2178,Tensão da rede,÷10 V,,confirmado,
+4503,600,Frequência da rede,÷10 Hz,,confirmado,
+4504,1617,Tensão FV,÷10 V,,confirmado,dia ~150–170 V
+4505,253,Potência FV,W,,confirmado,
+4506,267,Tensão da bateria,÷10 V,,confirmado,
+4507,34,SOC da bateria (BMS),%,,confirmado,vem do BMS em modo LIL
+4508,7,Corrente de carga da bateria,A,,confirmado,bate com o display frontal
+4509,0,Corrente de descarga da bateria,A,,confirmado,
+4510,2178,Tensão de saída,÷10 V,,confirmado,
+4511,600,Frequência de saída,÷10 Hz,,confirmado,
+4512,348,Potência aparente de saída,VA,,confirmado,app: 347 VA / Solar2MQTT
+4513,248,Potência ativa de saída,W,,confirmado,app: 304 W / Solar2MQTT; em carga baixa W>VA às vezes
+4514,8,Uso da capacidade,%,,confirmado,
+4515,8,(cópia do uso da capacidade?),%,,provável,
+4516,0,desconhecido,,,desconhecido,
+4517,220,Corte da saída dupla (prog 42) em V,÷10 V,,confirmado,app: Dual output turn off voltage 22.0 V
+4518,7511,Versão da CPU principal,texto,,confirmado,app: U1 75 11
+4519,0,desconhecido,,,desconhecido,candidato prog 37/41 (valor 0)
+4520,1,desconhecido,,,desconhecido,candidato prog 44 (EnA=1)
+4521,4200,Potência nominal,W,,confirmado,
+4522,4200,Potência nominal,VA,,confirmado,
+4523,230,Tensão CA nominal,V,,confirmado,
+4524,18,Corrente CA nominal,A,,confirmado,
+4525,240,Tensão nominal da bateria,÷10 V,,confirmado,
+4526,230,Tensão de saída nominal,V,,confirmado,
+4527,500,Frequência nominal,÷10 Hz,,confirmado,
+4528,18,Corrente de saída nominal,A,,confirmado,
+4529,0,Código de aviso,enum,,provável,app lê 4529 e 4530 como eventos
+4530,0,Código de falha,enum,,confirmado,ver codigos
+4531,5535,não usado?,,,provável,dump mostra 5535 (possível 65535)
+4532,5535,não usado?,,,provável,
+4533,5535,não usado?,,,provável,
+4534,55,Corte da saída dupla (prog 42) em %,%,,confirmado,display 55
+4535,292,Flags de configuração (BYTES INVERTIDOS),bitmask,5002–5010,confirmado,292=0x0124 → 0x2401; ver docs
+4536,2,Prioridade do carregador (prog 16),CSO=0 SNU=1 OSO=2,5017,confirmado,escrita testada 0/1/2
+4537,2,Prioridade de saída (prog 01),USB=0 SUB=1 SBU=2 MKS=3,5018,confirmado,escrita testada 0/1/2
+4538,1,Faixa de entrada CA (prog 03),APL=0 UPS=1,5019,confirmado,escrita não testada
+4539,6,Tipo de bateria (prog 05),AGM=0 FLD=1 USE=2 LIB=3 LIC=4 LIP=5 LIL=6,5020,confirmado,ordem do display; escrita não testada
+4540,1,Frequência de saída (prog 09),50Hz=0 60Hz=1,5021,confirmado,escrita não testada
+4541,40,Corrente máx. de carga total (prog 02),A,5022,confirmado,escrita testada (40→70 A)
+4542,220,Tensão de saída (prog 10),V,5023,confirmado,escrita não testada
+4543,2,Corrente máx. de carga pela rede (prog 11),A,5024,confirmado,escrita não testada
+4544,245,Volta para a rede (prog 12),÷10 V,5025,confirmado,em % se LIB-485 no manual; aqui V
+4545,270,Volta para a bateria (prog 13),÷10 V,5026,confirmado,
+4546,284,Tensão de carga bulk (prog 26),÷10 V,5027,confirmado,
+4547,274,Tensão de flutuação (prog 27),÷10 V,5028,confirmado,
+4548,240,Corte por bateria baixa (prog 29),÷10 V,5029,confirmado,
+4549,270,Tensão de equalização (prog 31),÷10 V,5030,confirmado,
+4550,60,Tempo de equalização (prog 33),min,5031,confirmado,
+4551,120,Timeout de equalização (prog 34),min,5032,confirmado,
+4552,30,Intervalo de equalização (prog 35),dias,5033,confirmado,
+4553,5478,Flags de status (BYTES INVERTIDOS),bitmask,,provável,0x1566→0x6615: Load enabled+AC active; confirmar na bateria
+4554,2,prog 38 (corrente de injeção 2 A) ou estado da bateria (2=carregando),,,desconhecido,confirmar à noite
+4555,11,desconhecido,,,desconhecido,"10 em 13/11, 11 em 14/11; não é corrente de carga nem ciclos"
+4556,11,desconhecido,,,desconhecido,igual ao 4555
+4557,40,Temperatura NTC máxima,°C,,confirmado,app: NTC maximum temperature
+4558,0,desconhecido,,,desconhecido,
+4559,0,desconhecido,,,desconhecido,
+4560,1,desconhecido,,,desconhecido,candidato prog 44
+4561,0,Estado do LED decorativo (prog 39),0=LOF 1=LON,,confirmado,só leitura; escrita em 4561/5042 recusada
+4562,0,desconhecido,,,desconhecido,
+4563,0,desconhecido,,,desconhecido,
+4564,0,desconhecido,,,desconhecido,

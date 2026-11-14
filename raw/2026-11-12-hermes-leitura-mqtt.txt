@@ -1,0 +1,56 @@
+artbot:
+Abaixo está a última leitura MQTT consultada às 23:53:50 (UTC−3), com a ponte online. Os endereços são registradores de leitura Modbus função 03, escravo 5, transportados por BLE. Não são endereços de escrita confirmados. Os valores podem ter mudado desde a consulta.
+
+Telemetria
+
+- 4501 — Código de estado: 4 — sensor.inversor_solar_anern_codigo_de_estado
+- 4502 — Tensão da rede: 216,6 V — sensor.inversor_solar_anern_tensao_da_rede
+- 4503 — Frequência da rede: 60,0 Hz — sensor.inversor_solar_anern_frequencia_da_rede
+- 4504 — Tensão solar: 0,0 V — sensor.inversor_solar_anern_tensao_solar
+- 4505 — Potência solar: 0 W — sensor.inversor_solar_anern_potencia_solar
+- 4506 — Tensão da bateria: 26,4 V — sensor.inversor_solar_anern_tensao_da_bateria
+- 4507 — Carga indicada da bateria: 29% — sensor.inversor_solar_anern_carga_da_bateria
+- 4508 — Corrente de carga: 0 A — sensor.inversor_solar_anern_corrente_de_carga_da_bateria
+- 4509 — Corrente de descarga: 0 A — sensor.inversor_solar_anern_corrente_de_descarga_da_bateria
+- 4510 — Tensão de saída: 216,6 V — sensor.inversor_solar_anern_tensao_de_saida
+- 4511 — Frequência de saída: 60,0 Hz — sensor.inversor_solar_anern_frequencia_de_saida
+- 4512 — Potência aparente da carga: 0 VA — sensor.inversor_solar_anern_potencia_aparente_da_carga
+- 4513 — Potência ativa da carga: 0 W — sensor.inversor_solar_anern_potencia_ativa_da_carga
+- 4514 — Carga do inversor: 0% — sensor.inversor_solar_anern_carga_do_inversor
+- 4521 — Potência nominal: 4200 W — sensor.inversor_solar_anern_potencia_nominal
+
+Configuração e diagnóstico — leituras
+
+- 4530 — Código de falha: 0 — sensor.inversor_solar_anern_codigo_de_falha_registro_4530
+- 4535 — Bitmask bruto: 292 — sensor.inversor_solar_anern_configuracoes_brutas_registro_4535
+- 4535 — Posições dos bits ativos: 2, 5, 8 — sensor.inversor_solar_anern_bits_ativos_registro_4535
+- 4536 — Código da prioridade de carga: 2 — sensor.inversor_solar_anern_codigo_de_prioridade_da_carga
+- 4537 — Código da prioridade de saída: 1 — sensor.inversor_solar_anern_codigo_de_prioridade_da_saida
+- 4538 — Código da faixa de entrada: 1 — sensor.inversor_solar_anern_codigo_de_faixa_de_entrada
+- 4539 — Código do tipo de bateria: 6 — sensor.inversor_solar_anern_codigo_do_tipo_de_bateria
+- 4540 — Código da frequência configurada: 1 — sensor.inversor_solar_anern_codigo_de_frequencia_configurada
+- 4541 — Corrente máxima de carga configurada*: 50 A — sensor.inversor_solar_anern_corrente_maxima_de_carga_configurada
+- 4542 — Corrente máxima de carga pela rede*: 220 A — sensor.inversor_solar_anern_corrente_maxima_de_carga_pela_rede
+- 4544 — Limite de aviso de bateria fraca*: 24,5 V — sensor.inversor_solar_anern_limite_de_aviso_de_bateria_fraca
+- 4545 — Limite de desligamento da bateria*: 27,0 V — sensor.inversor_solar_anern_limite_de_desligamento_da_bateria
+- 4546 — Tensão de carga principal*: 28,4 V — sensor.inversor_solar_anern_tensao_de_carga_principal_configurada
+- 4547 — Tensão de flutuação*: 27,4 V — sensor.inversor_solar_anern_tensao_de_flutuacao_configurada
+- 4548 — Tensão de retorno à rede*: 24,0 V — sensor.inversor_solar_anern_tensao_configurada_de_retorno_a_rede
+- 4549 — Tensão de retorno à bateria*: 27,0 V — sensor.inversor_solar_anern_tensao_configurada_de_retorno_a_bateria
+- 4561 — Estado lido do LED: 1 — sensor.inversor_solar_anern_estado_led_registro_4561
+ (1/2)
+
+\* Atenção: os números lidos são reais, mas vários nomes e escalas de configuração vieram de um mapa de modelo aparentado, não foram confirmados no menu deste Anern. Em particular, 4542 = “220 A de carga pela rede” e 4545 = “desligamento em 27,0 V” são suspeitos; não use essas interpretações para ajustar a bateria. A identificação de potência ativa/aparente em 4512/4513 também merece conferência com carga não nula. O código 2 em 4536 não deve ser traduzido automaticamente para OSO ou CSO.
+
+Comandos solicitados — situação
+
+Nenhuma entidade de comando está ativa no HA; todos os itens abaixo são apenas leituras no painel.
+
+- Prioridade de carga OSO/CSO — leitura 4536 = 2; endereço/função/enum de escrita local não validados.
+- Prioridade de saída — leitura 4537 = 1; escrita local não validada.
+- Faixa de entrada, tipo de bateria e frequência — leituras 4538–4540; escritas locais não validadas.
+- Correntes máximas e tensões/limiares de bateria — leituras 4541, 4542, 4544–4549; escritas locais não validadas. São parâmetros de maior risco para as baterias.
+- Bits de configuração — leitura 4535 = 292; significado de cada bit e escrita local não validados.
+- LED liga/desliga — estado lido em 4561 = 1. Testes locais anteriores de escrita nas hipóteses 4561/5042, com funções 06/10, retornaram erro, não confirmação de atuação. Houve um acionamento ON pela nuvem confirmado fisicamente, mas isso não constitui comando local BLE nem controle instalado no dashboard.
+
+Portanto, para cada comando acima, o endereço Modbus de escrita é “não confirmado”, mesmo quando conhecemos o endereço de leitura. (2/2)

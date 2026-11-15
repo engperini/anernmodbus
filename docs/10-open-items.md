@@ -15,4 +15,5 @@
 | Detailed BMS data | outside the Modbus block | read the battery BMS directly (RS485/CAN) |
 | Two batteries in the BMS | to be confirmed | check whether SOC/limits reflect both (communication cable/DIP) |
 | Writes 5019–5021, 5023–5033 and Group D | not tested | first use: write the current value (echo), then a real change checked on the display |
-| Programs 12, 13 and 29 in % (BMS battery LIB/LIL) | unknown | the display showed 30% (12) and 60% (13) on 2026-11-15 while 4544/4545 still read 24.5/27.0 V; no 30/60 in 4501–4564 and 5001+ refuses FC03. Find the % registers (other blocks, or HCI snoop of the app) |
+| Programs 12, 13 and 29 in % (BMS battery LIB/LIL) | **not in the readable Modbus space** | 2026-11-15: display 30% (12) / 60% (13) while 4544/4545 read 24.5/27.0 V. FC06 of 30 to 5025 was refused with exception 3 (illegal value), so 5025 takes volts only. Read-only scan (FC03): 4001–4100, 4401–4500 and 4565–4700 do not exist; 5001–5038 exist (see below); no 30/60 anywhere. Next: capture the phone app (Android HCI snoop) while changing program 12 in local Bluetooth mode |
+| 5001, 5003, 5011–5016 | unknown | readable, all 0 on 2026-11-15. Candidates for programs 37/41/44, but 44 (EnA) should not read 0 |

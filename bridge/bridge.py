@@ -360,9 +360,10 @@ class Bridge:
             value = value.replace(",", ".")
         try:
             if key in SOC_RANGES and soc_mode(self.values):
-                raw = encode_soc(key, value)
-                validate_soc_rules({k: self.values[k + "_raw"] for k in SOC_RANGES}, key, raw)
-                value = f"{raw}%"
+                # Tested 2026-11-15: 5025 refused 30 (%) with exception 3 (illegal value);
+                # it only takes volts. The % register is still unknown (docs/10).
+                raise ValueError("in BMS mode the inverter keeps this setting in %, in a register "
+                                 "not found yet; change it on the inverter display for now")
             else:
                 raw = control.encode(value)
                 if control.group == "B":

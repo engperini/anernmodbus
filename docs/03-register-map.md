@@ -119,3 +119,18 @@ Reading of 11/14 (0x6615): load enabled + grid active, "on battery" off, consist
 | bit 4535 | 5002, 5004–5010 | 18, 20, 06, 07, 22, 19, 23, 25 | 0/1 | state verified |
 
 Addresses that **refuse** writes: 4561, 5042 (LED). 5003 was never identified.
+
+## 50xx mirror (read, 2026-11-15 scan)
+
+FC03 works on **5001–5038** (5039+ refused). The words come with the **bytes swapped**
+relative to 45xx (e.g. 5022 = 0x5000 → 0x0050 = 80 A, 5025 = 0xF500 → 0x00F5 = 24.5 V):
+
+| Range | Content |
+|---|---|
+| 5002, 5004–5010 | Group D settings as 0/1 (same as the 4535 bits) |
+| 5017–5033 | mirror of 4536–4552 (the write registers read back) |
+| 5034–5038 | mirror of 4553–4557 (status flags, 4554, 4555, 4556, NTC) |
+| 5001, 5003, 5011–5016 | unknown, 0 |
+
+Ranges that do not exist (exception `05 83 82`): 4001–4100, 4401–4500, 4565–4700, 5039–5100.
+Raw results in `data/scan-2026-11-15-*.csv`; tool: `bridge/tools/scan_registers.py` (read-only).

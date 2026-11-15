@@ -52,6 +52,11 @@ DEVICE = {
 SENSORS = [
     ("operation_mode", "Operation mode", None, None, None, None, "mdi:state-machine", False),
     ("power_flow", "Power flow", None, None, None, None, "mdi:transmission-tower-export", False),
+    ("pv_status", "PV status", None, None, None, None, "mdi:solar-panel", False),
+    ("grid_state", "Grid state", None, None, None, None, "mdi:transmission-tower", False),
+    ("mains_relay", "Mains relay", None, None, None, None, "mdi:electric-switch", False),
+    ("battery_state", "Battery state", None, None, None, None, "mdi:battery-sync", False),
+    ("load_status", "Load status", None, None, None, None, "mdi:home-lightning-bolt", False),
     ("lcd_state", "LCD power flow screen (4554)", None, None, None, 0, None, True),
     ("status", "Operation mode code (4501)", None, None, None, 0, None, True),
     ("pv_voltage", "PV voltage", "V", "voltage", "measurement", 1, None, False),

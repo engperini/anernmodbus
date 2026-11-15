@@ -217,6 +217,32 @@ def power_flow(v: Dict[str, Any]) -> str:
     return OPERATION_MODES.get(mode, f"Code {mode}")
 
 
+def status_texts(v: Dict[str, Any]) -> Dict[str, str]:
+    """The vendor app's status lines (PV, grid, mains relay, battery, load), derived from
+    the readings. The inverter's own bits for them (probably 4553) are not decoded."""
+    grid_ok = v["grid_voltage"] > 90
+    relay_on = v["status"] in (2, 4)                      # line / bypass mode
+    if v["battery_charge_current"] > 0:
+        battery = "Charging"
+    elif v["battery_discharge_current"] > 0:
+        battery = "Discharging"
+    else:
+        battery = "Idle"
+    if v["fault_code"]:
+        load = "Fault"
+    elif v["load_percent"] >= 100:
+        load = "Overload"
+    else:
+        load = "Normal"
+    return {
+        "pv_status": "Producing" if v["pv_power"] > 0 else ("Connected, no power" if v["pv_voltage"] > 50 else "No PV"),
+        "grid_state": ("Connected, relay on" if relay_on else "Connected, relay off") if grid_ok else "No grid",
+        "mains_relay": "ON" if relay_on else "OFF",
+        "battery_state": battery,
+        "load_status": load,
+    }
+
+
 def reg(words: List[int], register: int) -> int:
     return words[register - BLOCK_START]
 
@@ -232,6 +258,7 @@ def decode_block(words: List[int]) -> Dict[str, Any]:
     lcd = reg(words, 4554)
     values["lcd_state"] = lcd
     values["power_flow"] = LCD_STATES.get(lcd) or power_flow(values)
+    values.update(status_texts(values))
     values["fault_text"] = code_text(values["fault_code"], FAULTS, "No fault")
     values["warning_text"] = code_text(values["warning_code"], WARNINGS, "No warning")
     # Registers whose meaning is still open (docs/10): kept visible to correlate over time.

@@ -37,9 +37,13 @@ inverter ── RWB1 dongle ──BLE── Raspberry Pi (bridge.py) ──MQTT�
 | Writes (FC06, address = read register + 481) | ✅ tested on 5017, 5018, 5022 |
 | Configuration flags (alarm, backlight…) | ✅ decoded |
 | Fault and warning codes | ✅ full table from the manual |
-| Programs 12/13/29 with a BMS battery (shown in % on the display) | ⚠️ read-only, % register unknown |
 | Decorative LED (program 39) | ⚠️ state only, write address unknown |
 | Detailed BMS data (cells, cycles) | ❌ not in the Modbus block |
+
+## Project status
+
+Complete and in daily use. Compared with the vendor cloud app, everything is covered except
+the writes of programs 30, 36, 37, 38, 39, 41 and 42 (see [docs/10](docs/10-open-items.md)).
 
 ## Installation
 

@@ -50,6 +50,9 @@ class DecodeTests(unittest.TestCase):
         self.assertEqual(self.v["operation_mode"], "Line mode (bypass)")
         self.assertEqual(self.v["lcd_state"], 2)
         self.assertEqual(self.v["power_flow"], "PV charging")
+        self.assertEqual((self.v["pv_status"], self.v["grid_state"], self.v["mains_relay"]),
+                         ("Producing", "Connected, relay on", "ON"))
+        self.assertEqual((self.v["battery_state"], self.v["load_status"]), ("Charging", "Normal"))
         self.assertEqual(self.v["cpu_version"], "U1 75 11")
         self.assertEqual(self.v["fault_text"], "No fault")
         self.assertEqual(self.v["led_text"], "LOF (off)")

@@ -205,6 +205,14 @@ views:
             name: Operation mode
           - entity: sensor.anern_power_flow
             name: Power flow
+          - entity: sensor.anern_pv_status
+            name: PV status
+          - entity: sensor.anern_grid_state
+            name: Grid state
+          - entity: sensor.anern_battery_state
+            name: Battery state
+          - entity: sensor.anern_load_status
+            name: Load status
           - entity: sensor.anern_ntc_temperature
             name: NTC temperature
           - entity: sensor.anern_led_text
@@ -262,11 +270,7 @@ views:
         content: |-
           **Open items: vendor app vs. this integration** (docs/10-open-items.md)
 
-          Settings the app has and this integration cannot write yet:
+          Settings in the app that this integration cannot write:
           - 30 Battery equalization, 36 Equalize now, 42 Dual output cutoff: read only, write address unknown.
           - 39 LED pattern: read only (4561), write refused.
           - 37 Grid-tie switch, 38 Grid-tie current, 41 Dual output switch: register unknown.
-          - 12, 13, 29 in % with a BMS battery: not exposed (the app shows volts too).
-
-          Readings the app has and this integration does not decode yet:
-          - PV status, PV access flag, Grid state, Mains relay, Battery state, Load status (probably bits of 4553).

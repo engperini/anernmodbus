@@ -52,3 +52,6 @@ Inverter menu programs, with the values checked on the display on 11/13–14/202
 - **LIL** (6): lithium with BMS communication (the manual calls it LIB-485). With LIB-485 the manual says 12/13/29 are shown in %; here they are shown in V.
 - **bP** on the display = **battery not connected** (not bypass).
 - **E9** = equalization in progress.
+
+Program **00** (restore factory settings; app: System → One Click Restore To Factory) is
+intentionally **not** offered in Home Assistant: it is destructive and its register is unknown.

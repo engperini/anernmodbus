@@ -5,7 +5,10 @@ Everything the vendor cloud app shows or sets, compared with what the Bluetooth 
 Screenshots: `images/02-app-sunhouse/app-settings-2026-11-15-*.jpg` (settings) and
 `app-data-details-2026-11-15-*.jpg` (readings), taken on 2026-11-15.
 
-Legend: ✅ read and write · 📖 read only · ⚠️ partial · ❌ missing
+Legend: ✅ covered · 📖 read only · ❌ missing
+
+With a BMS battery (type LIB/LIL) the inverter display shows programs 12, 13 and 29 in % of
+SOC; that % is not exposed over the dongle (the app shows volts too). See docs/07.
 
 ## Settings
 
@@ -20,8 +23,8 @@ Legend: ✅ read and write · 📖 read only · ⚠️ partial · ❌ missing
 | 09 | Load setting → Output Frequency | ✅ 4540 / 5021 | |
 | 10 | Load setting → Output Voltage | ✅ 4542 / 5023 | |
 | 11 | Equalization → Utility Charge Current | ✅ 4543 / 5024 | |
-| 12 | Equalization → Utility Mode Vol SBU Priority | ⚠️ volts ✅ 4544 / 5025; % (BMS battery) not exposed | the app shows volts too; % only on the display |
-| 13 | Equalization → Battery Mode Vol SBU Priority | ⚠️ volts ✅ 4545 / 5026; % not exposed | same |
+| 12 | Equalization → Utility Mode Vol SBU Priority | ✅ 4544 / 5025 (volts) | |
+| 13 | Equalization → Battery Mode Vol SBU Priority | ✅ 4545 / 5026 (volts) | |
 | 16 | Equalization → Charging Priority | ✅ 4536 / 5017 | |
 | 18 | Inverter → buzzer switch | ✅ bit 4535 / 5002 | |
 | 19 | Inverter → Return To Default Display Screen | ✅ bit 4535 / 5008 | |
@@ -31,7 +34,7 @@ Legend: ✅ read and write · 📖 read only · ⚠️ partial · ❌ missing
 | 25 | Inverter → Record Fault Code | ✅ bit 4535 / 5010 | |
 | 26 | Equalization → Bulk Charging Voltage | ✅ 4546 / 5027 | |
 | 27 | Equalization → Floating Charging Voltage | ✅ 4547 / 5028 | |
-| 29 | Equalization → Low Battery Cut Off Voltage | ⚠️ volts ✅ 4548 / 5029; % not exposed | same as 12 |
+| 29 | Equalization → Low Battery Cut Off Voltage | ✅ 4548 / 5029 (volts) | |
 | 30 | Equalization → Battery Equalization | 📖 bit 0x0002 of 4535 | ❌ write address unknown |
 | 31 | Equalization → Battery Equalization Voltage | ✅ 4549 / 5030 | |
 | 33 | Equalization → Battery Equalization Time | ✅ 4550 / 5031 | |
@@ -43,7 +46,7 @@ Legend: ✅ read and write · 📖 read only · ⚠️ partial · ❌ missing
 | 39 | Inverter → LED pattern switch | 📖 4561 | ❌ write refused at 5042; address unknown |
 | 41 | Load setting → Dual output switch | ❌ | register unknown (app reads off); no change seen in 4501–4564 when toggled |
 | 42 | Load setting → Dual output turn off voltage point | 📖 4517 (V) and 4534 (%) | ❌ write address unknown |
-| 00 | System → One Click Restore To Factory | ❌ | not planned (destructive) |
+| 00 | System → One Click Restore To Factory | intentionally not in the UI | documented only (docs/04); register unknown |
 
 Programs on the display but **not in the app**: 43 (lithium protocol), 44 (delayed grid
 access: tested, not exposed over the dongle) and 45 (max second load).
@@ -71,15 +74,15 @@ Notes for the ❌ rows:
 | Nominal values, Battery Piece (24 V), Main CPU Version | ✅ 4518, 4521–4528 |
 | LED pattern switch | ✅ 4561 |
 | All settings listed above | ✅ (see Settings) |
-| **PV Status** ("Normal access in working mode"), **Photovoltaic access flag** | ❌ probably bits of 4553 |
-| **Grid State** ("connected but relay not turned on"), **Mains relay status** | ❌ probably bits of 4553 (0x0100 = mains relay on?) |
-| **BatState** ("discharge") | ❌ probably bits of 4553 |
-| **Load Status** ("Normal working state") | ❌ probably bits of 4553 |
+| PV Status, Photovoltaic access flag | ✅ PV status (derived from PV voltage/power) |
+| Grid State, Mains relay status | ✅ Grid state, Mains relay (derived from grid voltage and mode) |
+| BatState | ✅ Battery state (derived from the battery currents) |
+| Load Status | ✅ Load status (derived from fault code and load %) |
 | Grid connected switch / current set, Dual output switch | ❌ see 37, 38, 41 |
 
 The bridge also shows what the app does not: fault and warning text (4530, 4529), the LCD
 power-flow screen (4554), and the raw unknown registers.
 
-How to close the 4553 rows: note the app's PV/Grid/Bat/Load status texts together with the
-"Status flags (4553)" sensor in a few different situations (night on battery, grid charging,
-bypass) and match the bits.
+The status texts are derived from the readings; the inverter bits behind them (most likely
+4553) are not decoded, so the binary sensors Charging enabled / Grid active / On battery stay
+provisional.

@@ -1,20 +1,85 @@
-# 10 — Open items
+# 10 — Open items: vendor app (cloud) vs. the Bluetooth bridge
 
-| Item | Status | How to resolve |
-|---|---|---|
-| 4501 codes 0, 1, 2, 5, 6 | not observed | note the value when the inverter is in standby, powering on, in fault, etc. |
-| 4553 status flags | **doubtful** | on 11/15 08:42: 4501 = 3 (Battery), 4553 = 0x7614 after the swap, and bit 0x0100 ("on battery") **off**. Revise the bit map by comparing several states |
-| 4554 | **probably solved** | index 0–7 of the LCD power-flow screen (manual 5.6 order); 2 and 7 observed and consistent. Confirm 0, 1, 3–6 when they happen (night on battery should give 6 or 7→6) |
-| 4555 / 4556 | **hypothesis: event counter** | always equal: 10 (11/13), 11 (11/14), **12** right after the output was cut and restored by toggling program 41 on 11/15 (the inverter itself was not restarted). Probably a counter of output on/off (or similar) events; confirm the next time the output is cut |
-| Prog 37 and 41 (value 0) | 41: not in 4501–4564 | 2026-11-15 ~11:48: the HA history of the bridge (sensor "Unknown registers (raw)") around the 41 toggle shows no change in 4516, 4519, 4520, 4558–4564; the only change was 4555/4556 11 → 12. 5001–5038 were not watched then. Toggling 41 cuts the second output (and anything plugged into it, e.g. the Pi). 37: not tested |
-| Prog 44 (delayed grid access) | **not exposed** | 2026-11-15: read 4515–4564 and 5001–5038 with 44 = dIS and again with 44 = EnA: nothing changed (only 4515, which follows the load %). 4520 and 4560 stay 1 in both, so they are not program 44 |
-| 4519, 4516, 4558, 4559, 4562–4564 | unknown | same |
-| LED (prog 39) | state in 4561; write unknown | capture the phone's Bluetooth (HCI snoop) while toggling the LED from the app in local mode; or call `gen/device/config/write` with the current value |
-| 4529 warning | probable | confirm when a real warning appears |
-| BMS screen 2 ("910") | unknown | note it together with current, PV power and load at different times |
-| Detailed BMS data | outside the Modbus block | read the battery BMS directly (RS485/CAN) |
-| Two batteries in the BMS | to be confirmed | check whether SOC/limits reflect both (communication cable/DIP) |
-| Writes 5019–5021, 5023–5033 and Group D | not tested | first use: write the current value (echo), then a real change checked on the display |
-| Programs 12, 13 and 29 in % (BMS battery LIB/LIL) | **not in the readable Modbus space** | 2026-11-15: display 30% (12) / 60% (13) while 4544/4545 read 24.5/27.0 V. FC06 of 30 to 5025 was refused with exception 3 (illegal value), so 5025 takes volts only. Read-only scan (FC03): 4001–4100, 4401–4500 and 4565–4700 do not exist; 5001–5038 exist (see below); no 30/60 anywhere. The vendor cloud app also shows program 12 in **volts** (24.5 V) in BMS mode, so the app reads the same voltage register: the % values seem not to be exposed over the dongle at all. Set them on the inverter display |
-| 5001, 5003, 5011–5016 | unknown | readable, all 0 on 2026-11-15. Candidates for programs 37/41/44, but 44 (EnA) should not read 0 |
-| Vendor app "Data details" (2026-11-15 11:08-11:23) | clues | Working State **Invert Mode** while 4501 = 3 (so 3 = invert mode). Grid State "connected but relay not turned on", Mains relay OFF, PV "normal access", BatState "discharge", with 4553 = 0x7614 (bit 0x0100 off): 0x0100 may mean "mains relay on" rather than "on battery". Program 37 (grid-tie) OFF, **38 = 2.0 A** and 41 (dual output) off are shown by the app, but 4554 read **7** at the same time, so **4554 is not program 38**; it is the LCD power-flow screen index (see 4554 above). The bridge now publishes the raw unknown registers (sensor "Unknown registers (raw)") to correlate them over time |
+Everything the vendor cloud app shows or sets, compared with what the Bluetooth bridge
+(this project) covers. Only the rows marked ❌ or ⚠️ are open.
+Screenshots: `images/02-app-sunhouse/app-settings-2026-11-15-*.jpg` (settings) and
+`app-data-details-2026-11-15-*.jpg` (readings), taken on 2026-11-15.
+
+Legend: ✅ read and write · 📖 read only · ⚠️ partial · ❌ missing
+
+## Settings
+
+| Prog | App menu → item | Bluetooth bridge | Open point |
+|---|---|---|---|
+| 01 | Load setting → Output Source Priority | ✅ 4537 / 5018 | |
+| 02 | Equalization → Max Total Charge Current | ✅ 4541 / 5022 | |
+| 03 | Grid → AC Input Range | ✅ 4538 / 5019 | |
+| 05 | Equalization → Battery Type | ✅ 4539 / 5020 | |
+| 06 | Inverter → Over Load Restart | ✅ bit 4535 / 5005 | |
+| 07 | Inverter → Over temperature auto restart | ✅ bit 4535 / 5006 | |
+| 09 | Load setting → Output Frequency | ✅ 4540 / 5021 | |
+| 10 | Load setting → Output Voltage | ✅ 4542 / 5023 | |
+| 11 | Equalization → Utility Charge Current | ✅ 4543 / 5024 | |
+| 12 | Equalization → Utility Mode Vol SBU Priority | ⚠️ volts ✅ 4544 / 5025; % (BMS battery) not exposed | the app shows volts too; % only on the display |
+| 13 | Equalization → Battery Mode Vol SBU Priority | ⚠️ volts ✅ 4545 / 5026; % not exposed | same |
+| 16 | Equalization → Charging Priority | ✅ 4536 / 5017 | |
+| 18 | Inverter → buzzer switch | ✅ bit 4535 / 5002 | |
+| 19 | Inverter → Return To Default Display Screen | ✅ bit 4535 / 5008 | |
+| 20 | Inverter → LCD backlight switch | ✅ bit 4535 / 5004 | |
+| 22 | Inverter → Beeps when high priority power is connected | ✅ bit 4535 / 5007 | |
+| 23 | Inverter → Overload to bypass | ✅ bit 4535 / 5009 | |
+| 25 | Inverter → Record Fault Code | ✅ bit 4535 / 5010 | |
+| 26 | Equalization → Bulk Charging Voltage | ✅ 4546 / 5027 | |
+| 27 | Equalization → Floating Charging Voltage | ✅ 4547 / 5028 | |
+| 29 | Equalization → Low Battery Cut Off Voltage | ⚠️ volts ✅ 4548 / 5029; % not exposed | same as 12 |
+| 30 | Equalization → Battery Equalization | 📖 bit 0x0002 of 4535 | ❌ write address unknown |
+| 31 | Equalization → Battery Equalization Voltage | ✅ 4549 / 5030 | |
+| 33 | Equalization → Battery Equalization Time | ✅ 4550 / 5031 | |
+| 34 | Equalization → Battery Equalization Timeout | ✅ 4551 / 5032 | |
+| 35 | Equalization → Battery Equalization Interval | ✅ 4552 / 5033 | |
+| 36 | Equalization → Equalization Activate Immediate | 📖 bit 0x0004 of 4535 | ❌ write address unknown |
+| 37 | Grid → GRID grid switch | ❌ | register unknown (app reads it as OFF) |
+| 38 | Grid → GRID-tie current | ❌ | register unknown (app reads 2.0 A; 4554 is not it) |
+| 39 | Inverter → LED pattern switch | 📖 4561 | ❌ write refused at 5042; address unknown |
+| 41 | Load setting → Dual output switch | ❌ | register unknown (app reads off); no change seen in 4501–4564 when toggled |
+| 42 | Load setting → Dual output turn off voltage point | 📖 4517 (V) and 4534 (%) | ❌ write address unknown |
+| 00 | System → One Click Restore To Factory | ❌ | not planned (destructive) |
+
+Programs on the display but **not in the app**: 43 (lithium protocol), 44 (delayed grid
+access: tested, not exposed over the dongle) and 45 (max second load).
+
+Notes for the ❌ rows:
+- The app reads only the blocks 4501–4521, 4521–4528, 4536–4564, 4553, 4529 and 4530
+  (docs/02), so 37, 38 and 41 must be somewhere in those; zero-valued candidates are
+  4516, 4519, 4558, 4559, 4562–4564 (37/41 read "off" = 0).
+- Writes follow read + 481 for the known settings, but 4561 + 481 = 5042 (LED) is refused,
+  so the extra settings may use another address or another command of the dongle.
+
+## Readings
+
+| App "Data details" item | Bluetooth bridge |
+|---|---|
+| Working State ("Invert Mode") | ✅ 4501 → Operation mode |
+| PV Input Voltage / Power, Generation Power | ✅ 4504, 4505 |
+| AC Input Voltage / Frequency | ✅ 4502, 4503 |
+| Mains Input Range | ✅ 4538 |
+| Battery Type / Voltage / Capacity (SOC) | ✅ 4539, 4506, 4507 |
+| Battery Charging / Discharge Current | ✅ 4508, 4509 |
+| Output Voltage / Frequency / Apparent / Active Power, Load Percentage | ✅ 4510–4514 |
+| NTC maximum temperature | ✅ 4557 |
+| Output turn off voltage point | ✅ 4517 |
+| Nominal values, Battery Piece (24 V), Main CPU Version | ✅ 4518, 4521–4528 |
+| LED pattern switch | ✅ 4561 |
+| All settings listed above | ✅ (see Settings) |
+| **PV Status** ("Normal access in working mode"), **Photovoltaic access flag** | ❌ probably bits of 4553 |
+| **Grid State** ("connected but relay not turned on"), **Mains relay status** | ❌ probably bits of 4553 (0x0100 = mains relay on?) |
+| **BatState** ("discharge") | ❌ probably bits of 4553 |
+| **Load Status** ("Normal working state") | ❌ probably bits of 4553 |
+| Grid connected switch / current set, Dual output switch | ❌ see 37, 38, 41 |
+
+The bridge also shows what the app does not: fault and warning text (4530, 4529), the LCD
+power-flow screen (4554), and the raw unknown registers.
+
+How to close the 4553 rows: note the app's PV/Grid/Bat/Load status texts together with the
+"Status flags (4553)" sensor in a few different situations (night on battery, grid charging,
+bypass) and match the bits.

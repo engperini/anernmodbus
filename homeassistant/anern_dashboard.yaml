@@ -260,16 +260,13 @@ views:
 
       - type: markdown
         content: |-
-          **Open items** (see docs/10-open-items.md)
+          **Open items: vendor app vs. this integration** (docs/10-open-items.md)
 
-          - 4501: codes 0, 1, 2, 5 and 6 not observed yet.
-          - Programs 12, 13 and 29 in % (BMS mode; display showed 30% and 60% for 12/13): registers not found in 4501–4564.
-          - 4553: in invert mode (4501 = 3) bit 0x0100 is off and the vendor app says mains relay OFF, so 0x0100 may mean "mains relay on".
-          - 4555/4556: probably an event counter (went 11 → 12 when the output was cut by program 41).
-          - 4554: LCD power-flow screen 0–7 (manual order); 2 and 7 seen, the others to confirm.
-          - Programs 37 and 41: registers not identified. Program 44 is not exposed (no register changes between dIS and EnA).
-          - 4519, 4558, 4559, 4562–4564: unknown.
-          - LED: state in 4561; write address unknown.
-          - 4529: confirm as the warning code when a real warning shows up.
-          - Detailed BMS data: outside the 4501–4564 block.
-          - Writes 5019–5021, 5023–5033 and Group D: not tested yet (first use: echo of the current value).
+          Settings the app has and this integration cannot write yet:
+          - 30 Battery equalization, 36 Equalize now, 42 Dual output cutoff: read only, write address unknown.
+          - 39 LED pattern: read only (4561), write refused.
+          - 37 Grid-tie switch, 38 Grid-tie current, 41 Dual output switch: register unknown.
+          - 12, 13, 29 in % with a BMS battery: not exposed (the app shows volts too).
+
+          Readings the app has and this integration does not decode yet:
+          - PV status, PV access flag, Grid state, Mains relay, Battery state, Load status (probably bits of 4553).

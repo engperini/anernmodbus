@@ -7,6 +7,8 @@ Metadata (EXIF/GPS) removed. Images showing the dongle's serial number were remo
 - `dongle-rwb1-manual.jpg` — Solar Plug RWB1 dongle leaflet.
 
 ## 02-app-sunhouse
+- `app-settings-2026-11-15-1…5.jpg` — every settings menu of the cloud app (Inverter, Equalization, System, Grid, Load), used for docs/10.
+- `app-data-details-2026-11-15-1…6.jpg` — the app readings on 2026-11-15 11:08–11:23 (Invert Mode, grid/relay/PV/battery status texts).
 - `app-led-pattern-switch.jpg` — "LED pattern switch" attribute (OFF/ON) in the app.
 - `app-data-details-1…6.jpg` — the app's Data details screen on 11/14 10:13, used to map 4517, 4518, 4521–4528, 4557 and to confirm 4512/4513 and 4535.
 

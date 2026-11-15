@@ -1,7 +1,7 @@
 """Register map, decoding and write validation for the Anern AN-SCI-ECO-4200.
 
-Source of truth: docs/03-mapa-registradores.md, docs/04-programas-display.md and
-docs/05-codigos-falha-aviso.md of this repository.
+Source of truth: docs/03-register-map.md, docs/04-display-programs.md and
+docs/05-fault-warning-codes.md of this repository.
 
 Modbus over the RWB1 dongle: slave 5, read FC03 on 4501-4564 (one block of 64
 works), write only FC06 on (read register + 481). The dongle returns register
@@ -50,8 +50,8 @@ def check_write_echo(request: bytes, response: bytes) -> None:
     if response == request:
         return
     if len(response) == 5 and response[:2] == bytes((SLAVE, 0x86)):
-        raise WriteRefused(f"inversor recusou (código {response[2]:#04x})")
-    raise ValueError(f"resposta inesperada: {response.hex(' ')}")
+        raise WriteRefused(f"inverter refused the write (code {response[2]:#04x})")
+    raise ValueError(f"unexpected response: {response.hex(' ')}")
 
 
 class WriteRefused(Exception):
@@ -65,52 +65,52 @@ def swap16(value: int) -> int:
 # ---------------------------------------------------------------- texts
 
 OPERATION_MODES = {
-    0: "Ligando", 1: "Espera", 2: "Rede", 3: "Bateria",
-    4: "Bypass (rede direto)", 5: "Carregando", 6: "Falha",
+    0: "Power on", 1: "Standby", 2: "Line", 3: "Battery",
+    4: "Bypass (grid direct)", 5: "Charging", 6: "Fault",
 }
 
 FAULTS = {
-    1: "Ventilador travado (inversor desligado)", 2: "Sobretemperatura",
-    3: "Tensão da bateria alta", 4: "Tensão da bateria baixa",
-    5: "Curto na saída ou sobretemperatura interna", 6: "Tensão de saída alta",
-    7: "Sobrecarga (tempo esgotado)", 8: "Tensão do barramento alta",
-    9: "Falha na partida suave do barramento",
-    21: "BMS: sobretensão de célula", 22: "BMS: subtensão de célula",
-    23: "BMS: sobretensão do pack", 24: "BMS: subtensão do pack",
-    25: "BMS: sobrecorrente de carga", 26: "BMS: sobrecorrente de descarga",
-    27: "BMS: sobretemperatura de célula na carga", 28: "BMS: sobretemperatura de célula na descarga",
-    29: "BMS: subtemperatura de célula na carga", 30: "BMS: subtemperatura de célula na descarga",
-    31: "BMS: sobretemperatura ambiente", 32: "BMS: subtemperatura ambiente",
-    33: "BMS: sobretemperatura do MOS", 35: "BMS: curto-circuito na bateria",
-    36: "BMS: sobretensão de carga", 37: "BMS: falha do sistema",
-    39: "BMS: falha do MOS de carga", 40: "BMS: falha do MOS de descarga",
-    41: "BMS: falha no sensor de temperatura", 42: "BMS: falha de célula",
-    43: "BMS: falha de comunicação de amostragem",
-    51: "Sobrecorrente ou surto", 52: "Tensão do barramento baixa",
-    53: "Falha na partida suave do inversor", 55: "Tensão CC na saída CA",
-    57: "Falha no sensor de corrente", 58: "Tensão de saída baixa",
-    59: "Tensão FV acima do limite",
-    61: "Comunicação com o BMS perdida (o inversor pode cortar a saída)",
+    1: "Fan locked (inverter off)", 2: "Over temperature",
+    3: "Battery voltage high", 4: "Battery voltage low",
+    5: "Output short circuit or internal over temperature", 6: "Output voltage high",
+    7: "Overload time out", 8: "Bus voltage high",
+    9: "Bus soft start failed",
+    21: "BMS: cell overvoltage", 22: "BMS: cell undervoltage",
+    23: "BMS: pack overvoltage", 24: "BMS: pack undervoltage",
+    25: "BMS: charge overcurrent", 26: "BMS: discharge overcurrent",
+    27: "BMS: cell over temperature while charging", 28: "BMS: cell over temperature while discharging",
+    29: "BMS: cell under temperature while charging", 30: "BMS: cell under temperature while discharging",
+    31: "BMS: ambient over temperature", 32: "BMS: ambient under temperature",
+    33: "BMS: MOS over temperature", 35: "BMS: battery short circuit",
+    36: "BMS: charge overvoltage", 37: "BMS: system fault",
+    39: "BMS: charge MOS fault", 40: "BMS: discharge MOS fault",
+    41: "BMS: temperature sensor fault", 42: "BMS: cell fault",
+    43: "BMS: sampling communication fault",
+    51: "Overcurrent or surge", 52: "Bus voltage low",
+    53: "Inverter soft start failed", 55: "DC voltage on AC output",
+    57: "Current sensor failed", 58: "Output voltage low",
+    59: "PV voltage over limit",
+    61: "BMS communication lost (the inverter may cut the output)",
 }
 
 WARNINGS = {
-    1: "Ventilador travado (inversor ligado)", 3: "Bateria sobrecarregada",
-    4: "Bateria baixa", 7: "Sobrecarga", 10: "Redução de potência de saída",
-    15: "Energia FV baixa",
-    21: "BMS: sobretensão de célula", 22: "BMS: subtensão de célula",
-    23: "BMS: sobretensão do pack", 24: "BMS: subtensão do pack",
-    25: "BMS: sobrecorrente de carga", 26: "BMS: sobrecorrente de descarga",
-    27: "BMS: temperatura de célula alta na carga", 28: "BMS: temperatura de célula alta na descarga",
-    29: "BMS: temperatura de célula baixa na carga", 30: "BMS: temperatura de célula baixa na descarga",
-    34: "BMS: capacidade muito baixa", 44: "BMS: desequilíbrio de tensão entre células",
-    45: "BMS: desequilíbrio de temperatura entre células", 46: "BMS: alarme de comunicação interna",
+    1: "Fan locked (inverter on)", 3: "Battery over-charged",
+    4: "Low battery", 7: "Overload", 10: "Output power derating",
+    15: "Low PV energy",
+    21: "BMS: cell overvoltage", 22: "BMS: cell undervoltage",
+    23: "BMS: pack overvoltage", 24: "BMS: pack undervoltage",
+    25: "BMS: charge overcurrent", 26: "BMS: discharge overcurrent",
+    27: "BMS: cell temperature high while charging", 28: "BMS: cell temperature high while discharging",
+    29: "BMS: cell temperature low while charging", 30: "BMS: cell temperature low while discharging",
+    34: "BMS: capacity very low", 44: "BMS: cell voltage imbalance",
+    45: "BMS: cell temperature imbalance", 46: "BMS: internal communication alarm",
 }
 
 
 def code_text(code: int, table: Dict[int, str]) -> str:
     if code == 0:
-        return "Nenhum"
-    return f"{code:02d} · {table.get(code, f'Código {code}')}"
+        return "None"
+    return f"{code:02d} · {table.get(code, f'Code {code}')}"
 
 
 # ---------------------------------------------------------------- telemetry
@@ -183,12 +183,12 @@ def decode_block(words: List[int]) -> Dict[str, Any]:
     for key, (register, scale, precision) in TELEMETRY.items():
         raw = reg(words, register)
         values[key] = round(raw * scale, precision) if precision else int(round(raw * scale))
-    values["operation_mode"] = OPERATION_MODES.get(values["status"], f"Código {values['status']}")
+    values["operation_mode"] = OPERATION_MODES.get(values["status"], f"Code {values['status']}")
     values["fault_text"] = code_text(values["fault_code"], FAULTS)
     values["warning_text"] = code_text(values["warning_code"], WARNINGS)
     cpu = reg(words, 4518)
     values["cpu_version"] = f"U1 {cpu // 100:02d} {cpu % 100:02d}"
-    values["led_text"] = {0: "LOF (desligado)", 1: "LON (ligado)"}.get(values["led_state"], str(values["led_state"]))
+    values["led_text"] = {0: "LOF (off)", 1: "LON (on)"}.get(values["led_state"], str(values["led_state"]))
 
     flags = swap16(reg(words, CONFIG_FLAGS_REG))
     values["config_flags"] = flags
@@ -247,21 +247,21 @@ class Control:
         """UI value -> raw register value, validating the range of this control."""
         if self.kind == "switch":
             if value not in ("ON", "OFF"):
-                raise ValueError("use ON ou OFF")
+                raise ValueError("use ON or OFF")
             return 1 if value == "ON" else 0
         if self.options:
             if value not in self.options:
-                raise ValueError(f"opção inválida: {value}")
+                raise ValueError(f"invalid option: {value}")
             values = self.option_values or tuple(range(len(self.options)))
             return values[self.options.index(value)]
         number = float(value)
         if self.allowed and not any(abs(number - a) < 1e-6 for a in self.allowed):
-            raise ValueError(f"{self.name}: valores aceitos {', '.join(f'{a:g}' for a in self.allowed)}")
+            raise ValueError(f"{self.name}: accepted values {', '.join(f'{a:g}' for a in self.allowed)}")
         if not (self.minimum - 1e-6 <= number <= self.maximum + 1e-6):
-            raise ValueError(f"{self.name}: faixa {self.minimum:g}–{self.maximum:g} {self.unit or ''}".strip())
+            raise ValueError(f"{self.name}: range {self.minimum:g}–{self.maximum:g} {self.unit or ''}".strip())
         steps = (number - self.minimum) / self.step
         if not self.allowed and abs(steps - round(steps)) > 1e-6:
-            raise ValueError(f"{self.name}: passo {self.step:g}")
+            raise ValueError(f"{self.name}: step {self.step:g}")
         return int(round(number / self.scale))
 
 
@@ -270,54 +270,54 @@ def _c(**kw) -> Control:
 
 
 _CONTROL_LIST = [
-    # Grupo A · prioridades
-    _c(key="charger_source", name="Fonte de carga (16)", group="A", program=16,
+    # Group A · priorities
+    _c(key="charger_source", name="Charger source (16)", group="A", program=16,
        read_register=4536, write_register=5017, options=("CSO", "SNU", "OSO"), icon="mdi:battery-charging"),
-    _c(key="output_source", name="Fonte de saída (01)", group="A", program=1,
+    _c(key="output_source", name="Output source (01)", group="A", program=1,
        read_register=4537, write_register=5018, options=("USB", "SUB", "SBU", "MKS"), icon="mdi:transmission-tower"),
-    # Grupo B · parâmetros
-    _c(key="total_charge_current", name="Corrente total (02)", group="B", program=2,
+    # Group B · parameters
+    _c(key="total_charge_current", name="Battery charge current, total max (02)", group="B", program=2,
        read_register=4541, write_register=5022, minimum=10, maximum=100, step=10, unit="A"),
-    _c(key="grid_charge_current", name="Corrente rede (11)", group="B", program=11,
+    _c(key="grid_charge_current", name="Battery charge current from grid, max (11)", group="B", program=11,
        read_register=4543, write_register=5024, minimum=2, maximum=100, step=1, unit="A",
        allowed=(2, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100)),
-    _c(key="back_to_grid", name="Volta rede (12)", group="B", program=12,
+    _c(key="back_to_grid", name="Battery voltage to switch to grid (12)", group="B", program=12,
        read_register=4544, write_register=5025, minimum=21.0, maximum=25.5, step=0.5, scale=0.1, unit="V"),
-    _c(key="back_to_battery", name="Volta bateria (13)", group="B", program=13,
+    _c(key="back_to_battery", name="Battery voltage to switch back to battery (13)", group="B", program=13,
        read_register=4545, write_register=5026, minimum=24.0, maximum=29.0, step=0.5, scale=0.1, unit="V"),
-    _c(key="bulk_voltage", name="Carga bulk (26)", group="B", program=26,
+    _c(key="bulk_voltage", name="Bulk charge voltage (26)", group="B", program=26,
        read_register=4546, write_register=5027, minimum=26.0, maximum=28.8, step=0.1, scale=0.1, unit="V"),
-    _c(key="float_voltage", name="Flutuação (27)", group="B", program=27,
+    _c(key="float_voltage", name="Float charge voltage (27)", group="B", program=27,
        read_register=4547, write_register=5028, minimum=26.0, maximum=28.8, step=0.1, scale=0.1, unit="V"),
-    _c(key="low_cutoff", name="Corte bateria (29)", group="B", program=29,
+    _c(key="low_cutoff", name="Low battery cutoff (29)", group="B", program=29,
        read_register=4548, write_register=5029, minimum=24.0, maximum=25.0, step=0.1, scale=0.1, unit="V"),
-    _c(key="equalization_voltage", name="Equalização (31)", group="B", program=31,
+    _c(key="equalization_voltage", name="Equalization voltage (31)", group="B", program=31,
        read_register=4549, write_register=5030, minimum=26.0, maximum=28.8, step=0.1, scale=0.1, unit="V"),
-    _c(key="equalization_time", name="Tempo equaliz. (33)", group="B", program=33,
+    _c(key="equalization_time", name="Equalization time (33)", group="B", program=33,
        read_register=4550, write_register=5031, minimum=5, maximum=900, step=5, unit="min"),
-    _c(key="equalization_timeout", name="Limite equaliz. (34)", group="B", program=34,
+    _c(key="equalization_timeout", name="Equalization timeout (34)", group="B", program=34,
        read_register=4551, write_register=5032, minimum=5, maximum=900, step=5, unit="min"),
-    _c(key="equalization_interval", name="Intervalo equaliz. (35)", group="B", program=35,
+    _c(key="equalization_interval", name="Equalization interval (35)", group="B", program=35,
        read_register=4552, write_register=5033, minimum=0, maximum=90, step=1, unit="d"),
-    # Grupo C · ajustes críticos (select prepara, botão aplica)
-    _c(key="ac_input_range", name="Faixa CA (03)", group="C", program=3,
+    # Group C · critical settings (select prepares, button applies)
+    _c(key="ac_input_range", name="AC input range (03)", group="C", program=3,
        read_register=4538, write_register=5019, options=("APL", "UPS")),
-    _c(key="battery_type", name="Tipo de bateria (05)", group="C", program=5,
+    _c(key="battery_type", name="Battery type (05)", group="C", program=5,
        read_register=4539, write_register=5020, options=("AGM", "FLD", "USE", "LIB", "LIC", "LIP", "LIL")),
-    _c(key="output_frequency_setting", name="Frequência (09)", group="C", program=9,
+    _c(key="output_frequency_setting", name="Output frequency (09)", group="C", program=9,
        read_register=4540, write_register=5021, options=("50 Hz", "60 Hz")),
-    _c(key="output_voltage_setting", name="Tensão de saída (10)", group="C", program=10,
+    _c(key="output_voltage_setting", name="Output voltage (10)", group="C", program=10,
        read_register=4542, write_register=5023, options=("220 V", "230 V", "240 V"), option_values=(220, 230, 240)),
 ]
-# Grupo D · liga/desliga (estado no 4535)
+# Group D · on/off (state from 4535)
 for _bit, (_key, _prog, _write) in CONFIG_BITS.items():
     if _write is None:
         continue
     _CONTROL_LIST.append(_c(key=_key, name={
-        "fault_record": "Registro de falhas (25)", "alarm": "Alarme (18)", "backlight": "Luz de fundo (20)",
-        "restart_overload": "Reinício após sobrecarga (06)", "restart_overtemp": "Reinício após sobretemperatura (07)",
-        "beep_source_loss": "Apito na falha da rede (22)", "default_screen": "Tela padrão (19)",
-        "overload_bypass": "Bypass na sobrecarga (23)"}[_key],
+        "fault_record": "Fault record (25)", "alarm": "Alarm (18)", "backlight": "Backlight (20)",
+        "restart_overload": "Restart on overload (06)", "restart_overtemp": "Restart on over temperature (07)",
+        "beep_source_loss": "Beep on source loss (22)", "default_screen": "Return to default screen (19)",
+        "overload_bypass": "Overload bypass (23)"}[_key],
         group="D", program=_prog, write_register=_write, bit=_bit))
 
 CONTROLS: Dict[str, Control] = {c.key: c for c in _CONTROL_LIST}
@@ -338,14 +338,28 @@ def validate_rules(current: Dict[str, Any], key: str, value: Any) -> None:
         return float(v[k])
 
     if key in ("grid_charge_current", "total_charge_current") and num("grid_charge_current") > num("total_charge_current"):
-        raise ValueError("corrente rede (11) deve ser ≤ corrente total (02)")
+        raise ValueError("battery charge current from grid (11) must be ≤ total battery charge current (02)")
     if key in ("low_cutoff", "back_to_grid", "back_to_battery"):
         if not num("low_cutoff") < num("back_to_grid"):
-            raise ValueError("corte (29) deve ser < volta rede (12)")
+            raise ValueError("low cutoff (29) must be < back to grid (12)")
         if not num("back_to_grid") < num("back_to_battery"):
-            raise ValueError("volta rede (12) deve ser < volta bateria (13)")
+            raise ValueError("back to grid (12) must be < back to battery (13)")
     if key in ("float_voltage", "bulk_voltage") and num("float_voltage") > num("bulk_voltage"):
-        raise ValueError("flutuação (27) deve ser ≤ bulk (26)")
+        raise ValueError("float (27) must be ≤ bulk (26)")
+
+
+# With a communicating lithium BMS the display shows programs 12, 13 and 29 in % of
+# SOC, but 4544/4545/4548 keep the voltage-mode values and the % registers are
+# unknown (docs/10). Writing the volts there would not do what the user expects.
+SOC_MODE_BATTERY_TYPES = ("LIB", "LIL")
+SOC_MODE_CONTROLS = ("back_to_grid", "back_to_battery", "low_cutoff")
+
+
+def soc_mode_block(values: Dict[str, Any], key: str) -> Optional[str]:
+    if key in SOC_MODE_CONTROLS and values.get("battery_type") in SOC_MODE_BATTERY_TYPES:
+        return (f"with battery type {values['battery_type']} the inverter uses % (display) for this "
+                "program; the % register is not known yet, so it is read-only")
+    return None
 
 
 def required_locks(control: Control) -> Tuple[str, ...]:

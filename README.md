@@ -1,61 +1,182 @@
-# Dossiê — Inversor Anern AN-SCI-ECO-4200 + Home Assistant (BLE → MQTT)
+# Anern AN-SCI-ECO-4200 inverter → Home Assistant (local Bluetooth, no cloud)
 
-Registro completo da engenharia reversa e da integração local do inversor **Anern AN-SCI-ECO-4200 (4,2 kW / 24 V)** com o **Home Assistant**, feita entre 11 e 14/11/2026. Lendo e escrevendo parâmetros pelo dongle **Solar Plug RWB1** via Bluetooth (BLE), sem depender da nuvem do fabricante.
+Read **and** change the settings of an **Anern AN-SCI-ECO-4200** hybrid solar inverter
+(4.2 kW / 24 V) from **Home Assistant**, through the **Solar Plug RWB1** Bluetooth dongle
+that ships with it. A small Python bridge running on a Raspberry Pi (or any Linux box with
+Bluetooth) talks to the dongle over BLE and publishes everything to MQTT, with Home
+Assistant auto-discovery.
 
-> Objetivo deste repositório: **não perder o conhecimento**. Tudo o que foi descoberto, confirmado e testado está aqui, com as evidências (prints do app, do display, do manual e do painel). Com este dossiê é possível reconstruir a ponte e o painel do zero.
+```
+inverter ── RWB1 dongle ──BLE── Raspberry Pi (bridge.py) ──MQTT── Home Assistant
+```
 
-> Repositório público: não há senhas, tokens, números de série do dongle nem endereços de rede aqui, e as fotos estão sem metadados (EXIF/GPS).
+> Unofficial community project, not affiliated with Anern, the RWB1 maker or the vendor app.
+> Changing inverter settings is your responsibility: read the inverter and battery manuals first.
 
----
+## What you get
 
-## Resumo do que funciona
+- **Telemetry**: PV voltage/power, battery voltage/SOC (from the BMS)/currents, grid, output,
+  load, NTC temperature, operation mode, fault and warning **as text**.
+- **Controls** (MQTT select / number / switch / button), grouped like the inverter programs:
+  - **Group A** · charger source (16), output source (01)
+  - **Group B** · charge currents, back to grid/battery, bulk, float, cutoff, equalization
+  - **Group C** · AC input range, battery type, output frequency, output voltage
+    (needs two locks and a confirmation)
+  - **Group D** · alarm, backlight, auto-restart, beep, bypass, fault record
+- **Safe writes**: every change is validated (range, step, cross-rules), written once with
+  Modbus FC06, the echo is checked, the value is read back and the result is shown in
+  "Last setting result". A refusal is never retried. Writes only happen while the
+  **edit locks** in Home Assistant are on; they turn off by themselves after 10 minutes.
+- **Alerts**: inverter fault, BMS communication lost (code 61), warning for more than 2 min,
+  bridge without data for 5 min.
+- A ready **dashboard** (`homeassistant/anern_dashboard.yaml`).
 
-| Item | Situação |
+| Feature | Status |
 |---|---|
-| Leitura de telemetria (FV, bateria, rede, saída, SOC do BMS) | ✅ confirmada |
-| Escrita de parâmetros (FC06, endereço = leitura + 481) | ✅ confirmada em 5017, 5018 e 5022 |
-| Prioridade do carregador (CSO/SNU/OSO) pelo HA | ✅ testada com mudança real |
-| Prioridade de saída (USB/SUB/SBU) pelo HA | ✅ testada com mudança real |
-| Corrente máx. de carga (prog 02) pelo HA | ✅ testada (40 → 70 A) |
-| Flags de configuração (alarme, luz de fundo etc.) | ✅ decodificadas (bytes invertidos) |
-| Códigos de falha e aviso | ✅ tabela completa do manual |
-| Comunicação com o BMS (modo LIL, prog 43 = 48) | ✅ funcionando |
-| LED decorativo (prog 39) | ⚠️ estado lido; endereço de escrita desconhecido |
-| Dados detalhados do BMS (células, ciclos) | ❌ não estão no bloco Modbus |
+| Telemetry (PV, battery, grid, output, BMS SOC) | ✅ confirmed |
+| Writes (FC06, address = read register + 481) | ✅ tested on 5017, 5018, 5022 |
+| Configuration flags (alarm, backlight…) | ✅ decoded |
+| Fault and warning codes | ✅ full table from the manual |
+| Programs 12/13/29 with a BMS battery (shown in % on the display) | ⚠️ read-only, % register unknown |
+| Decorative LED (program 39) | ⚠️ state only, write address unknown |
+| Detailed BMS data (cells, cycles) | ❌ not in the Modbus block |
 
-## Índice
+## Installation
 
-| Documento | Conteúdo |
+You need:
+- the inverter with its **RWB1** dongle, and the dongle's **DTU ID** (see below);
+- a **Raspberry Pi** (any model with Bluetooth; tested on a Pi 5 with Raspberry Pi OS
+  Bookworm and Trixie) within Bluetooth range of the dongle;
+- an **MQTT broker** that Home Assistant uses (the Mosquitto add-on on HA OS, or
+  Mosquitto on the Pi itself).
+
+Only one Bluetooth connection to the dongle works at a time: close the vendor app on your
+phone (or switch it to cloud mode) while the bridge runs.
+
+### 1. Find the DTU ID
+
+Open the vendor app → your installation → **Device Information**, and copy the row called
+**DTU ID**, **Device PN** or **Device Name** (a long number). It is **not** the SN row, not
+the `SSL_...` Bluetooth name and not a MAC address. The bridge uses it locally to derive the
+dongle's encryption key; keep it private.
+
+### 2. Install the bridge on the Raspberry Pi
+
+```bash
+sudo apt install -y git
+git clone https://github.com/engperini/anernmodbus.git
+cd anernmodbus/bridge
+./install.sh
+```
+
+The installer asks for the DTU ID and the MQTT broker, then:
+1. installs what is missing (`python3-venv`, `bluez`);
+2. creates a Python virtual environment with the dependencies;
+3. writes `rwb1.env` (your settings, mode 600, never committed);
+4. finds the dongle by Bluetooth (it advertises as `SSL_...`);
+5. runs the unit tests and one test read;
+6. installs a **systemd user service** (`rwb1-ble`) and enables *lingering*, so the bridge
+   starts at every boot and restarts by itself if it stops.
+
+Non-interactive example (broker = Mosquitto add-on of Home Assistant OS):
+
+```bash
+./install.sh --dtu-id 12345678901234567890 \
+  --mqtt-host 192.168.1.10 --mqtt-user mqtt_user --mqtt-password 'your-password'
+```
+
+Useful commands:
+
+```bash
+journalctl --user -u rwb1-ble -f        # live log
+systemctl --user restart rwb1-ble       # restart
+.venv/bin/python bridge.py --scan       # list nearby RWB1 dongles
+.venv/bin/python bridge.py --once       # one read, print the result, exit
+./install.sh --uninstall                # remove the service
+```
+
+To change a setting later (broker, interval…), run `./install.sh` again with the new
+option, or edit `rwb1.env` and restart the service.
+
+### 3. Home Assistant
+
+1. **MQTT integration**: Settings → Devices & services → MQTT, pointing to the same broker.
+   The device **"Anern solar inverter"** appears by itself (MQTT discovery).
+2. **Package** (locks, alerts, "data fresh" sensor): copy
+   [`homeassistant/anern_package.yaml`](homeassistant/anern_package.yaml) to
+   `<config>/packages/anern.yaml` and enable packages in `configuration.yaml`:
+   ```yaml
+   homeassistant:
+     packages: !include_dir_named packages
+   ```
+3. **Dashboard**: copy
+   [`homeassistant/anern_dashboard.yaml`](homeassistant/anern_dashboard.yaml)
+   to your config folder and register it in `configuration.yaml`:
+   ```yaml
+   lovelace:
+     dashboards:
+       anern-inverter:
+         mode: yaml
+         title: Anern inverter
+         icon: mdi:solar-power
+         show_in_sidebar: true
+         filename: anern_dashboard.yaml
+   ```
+4. Restart Home Assistant (Developer tools → Check configuration first).
+
+On **Home Assistant OS** use the *File editor* or *Samba share* add-on to copy the files.
+On **HA Core** in the same Pi you can link them instead of copying, so `git pull` updates
+them: `ln -s ~/anernmodbus/homeassistant/anern_package.yaml <config>/packages/anern.yaml`.
+
+### 4. First write
+
+Writes for many programs were never tested on this inverter. For each control, the first
+time: turn on **Edit mode**, write the **current** value (echo test), check "Last setting
+result", then make the real change and confirm it on the inverter display. Group C also
+needs **Critical settings** and the **Apply** button.
+
+## How it works
+
+| Item | Value |
 |---|---|
-| [docs/01-hardware.md](docs/01-hardware.md) | Inversor, etiqueta, baterias, ligação do banco, dongle, Raspberry Pi |
-| [docs/02-protocolo.md](docs/02-protocolo.md) | Transporte BLE, Modbus, leitura/escrita, erros, CRC, bytes invertidos |
-| [docs/03-mapa-registradores.md](docs/03-mapa-registradores.md) | **Mapa completo 4501–4564 e 5002–5033** |
-| [docs/04-programas-display.md](docs/04-programas-display.md) | Programas 01–45 do display, valores e códigos |
-| [docs/05-codigos-falha-aviso.md](docs/05-codigos-falha-aviso.md) | Códigos de falha/aviso do inversor e da bateria |
-| [docs/06-bms.md](docs/06-bms.md) | Telas do BMS no display, diferenças de firmware, saúde da bateria |
-| [docs/07-home-assistant.md](docs/07-home-assistant.md) | **Especificação completa do painel e dos controles** |
-| [docs/08-ponte-ble.md](docs/08-ponte-ble.md) | Ponte BLE → MQTT: origem do código, requisitos, resiliência |
-| [bridge/](bridge/) | **Código da ponte** (versão de 13/11 recuperada) |
-| [docs/09-historico.md](docs/09-historico.md) | Linha do tempo da investigação e lições |
-| [docs/10-pendencias.md](docs/10-pendencias.md) | O que ainda está em aberto e como resolver |
-| [docs/11-incidente-perda-dados.md](docs/11-incidente-perda-dados.md) | Perda de dados por queda de energia / cartão SD e prevenção |
-| [docs/12-reconstrucao.md](docs/12-reconstrucao.md) | **Passo a passo para reconstruir tudo** (inclui instrução pronta para agente) |
-| [data/registradores-4501-4564.csv](data/registradores-4501-4564.csv) | Mapa em CSV (para código) |
-| [data/dump-2026-11-14-1127.csv](data/dump-2026-11-14-1127.csv) | Dump bruto de referência |
-| [images/INDEX.md](images/INDEX.md) | Índice das imagens/evidências |
-| [raw/](raw/) | Relatórios originais dos agentes (texto) |
+| BLE | service `FEE7`, write `FED5`, indicate `FED6`; encrypted, fragmented frames |
+| Modbus | slave `5`; read `FC03` block `4501–4564` (64 registers, one request) |
+| Writes | **only** `FC06`, register = read register **+ 481** (e.g. read 4537 → write 5018) |
+| Errors | `05 86 82` FC06 refused · `05 90 81` FC10 unsupported · `05 03 82` invalid read |
+| Byte order | words little-endian; bitmasks `4535` and `4553` have swapped bytes |
+| Family | same protocol as the PowMr HVM series |
 
-## Atalhos técnicos
+MQTT topics: `solar/rwb1_ble/<id>/state` (JSON, retained), `/availability`,
+`/set/<key>`, `/apply/<key>`, `/result`, and `solar/rwb1_ble/locks` (from the HA package).
+Details in [docs/08-ble-bridge.md](docs/08-ble-bridge.md).
 
-- **Modbus:** escravo `5`, leitura `FC03` no bloco `4501–4564`, escrita **somente** `FC06` em `5002–5033`.
-- **Endereço de escrita = endereço de leitura + 481** (ex.: lê 4537 → escreve 5018).
-- **Erros:** `05 86 82` = FC06 em endereço inválido; `05 90 81` = FC10 não suportada; `05 03 82` = leitura em endereço inválido.
-- **Bytes invertidos:** registradores de bitmask `4535` e `4553`.
-- **Família:** mesmo protocolo dos PowMr HVM (mapas públicos: odya/esphome-powmr-hybrid-inverter, leodesigner/powmr_comm, softwarecrash/Solar2MQTT).
+## Documentation
 
-## Créditos e referências
+| Document | Content |
+|---|---|
+| [docs/01-hardware.md](docs/01-hardware.md) | Inverter, label, batteries, dongle, Raspberry Pi |
+| [docs/02-protocol.md](docs/02-protocol.md) | BLE transport, Modbus, reads/writes, errors, CRC, byte swap |
+| [docs/03-register-map.md](docs/03-register-map.md) | **Full map 4501–4564 and 5002–5033** |
+| [docs/04-display-programs.md](docs/04-display-programs.md) | Display programs 01–45, values and codes |
+| [docs/05-fault-warning-codes.md](docs/05-fault-warning-codes.md) | Inverter and battery fault/warning codes |
+| [docs/06-bms.md](docs/06-bms.md) | BMS screens on the display, battery health |
+| [docs/07-home-assistant.md](docs/07-home-assistant.md) | **Dashboard and controls specification** |
+| [docs/08-ble-bridge.md](docs/08-ble-bridge.md) | The bridge: code, install, MQTT topics, resilience |
+| [docs/09-history.md](docs/09-history.md) | Investigation timeline and lessons |
+| [docs/10-open-items.md](docs/10-open-items.md) | What is still unknown and how to find out |
+| [docs/11-data-loss-incident.md](docs/11-data-loss-incident.md) | SD card data loss after power cuts, and prevention |
+| [docs/12-rebuild.md](docs/12-rebuild.md) | Step by step to rebuild everything |
+| [data/](data/) | Register map in CSV and a raw reference dump |
+| [images/INDEX.md](images/INDEX.md) | Screenshots and photos used as evidence |
 
-- [odya/esphome-powmr-hybrid-inverter](https://github.com/odya/esphome-powmr-hybrid-inverter) — mapa de registradores PowMr
-- [leodesigner/powmr_comm](https://github.com/leodesigner/powmr_comm) — quadros reais de escrita FC06
-- [softwarecrash/Solar2MQTT](https://github.com/softwarecrash/Solar2MQTT) — confirmação de 4512/4513, tipos de bateria e modos de operação da família
-- Manual impresso do Anern AN-SCI-ECO-4200 (fotos em `images/04-manual`)
+## Credits
+
+- [Jpedrotas/easun-rwb1-esphome](https://github.com/Jpedrotas/easun-rwb1-esphome) — RWB1 BLE
+  protocol and key derivation (the base of `bridge/tools/`); its ESPHome component is kept in
+  `bridge/` (see `bridge/README.md`)
+- [odya/esphome-powmr-hybrid-inverter](https://github.com/odya/esphome-powmr-hybrid-inverter) — PowMr register map
+- [leodesigner/powmr_comm](https://github.com/leodesigner/powmr_comm) — real FC06 write frames
+- [softwarecrash/Solar2MQTT](https://github.com/softwarecrash/Solar2MQTT) — 4512/4513, battery types and operation modes of the family
+
+No passwords, tokens, dongle serial numbers or network addresses are published here, and the
+photos have no EXIF/GPS metadata.

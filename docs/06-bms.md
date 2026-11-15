@@ -1,42 +1,42 @@
-# 06 — BMS e baterias
+# 06 — BMS and batteries
 
-## Comunicação inversor ↔ BMS
+## Inverter ↔ BMS communication
 
-- Funciona com **prog 05 = LIL** e **prog 43 = 48**. O manual fala em PYL/PAC para o prog 43, mas este firmware mostra um número; **48 é o valor que funciona — não alterar**.
-- Evidências: SOC vem do BMS (4507), limites de carga reconhecidos, display mostra as telas do BMS.
-- Relatos externos de outros Anern com 43 = 49 para BMS JK; não se aplica aqui.
-- Com duas baterias em paralelo, conferir se a bateria ligada ao inversor agrega os dados das duas (cabo de comunicação entre elas e endereço/DIP conforme o manual da Felicity).
+- Works with **prog 05 = LIL** and **prog 43 = 48**. The manual mentions PYL/PAC for prog 43, but this firmware shows a number; **48 is the value that works — do not change it**.
+- Evidence: SOC comes from the BMS (4507), charge limits are recognized, the display shows the BMS screens.
+- External reports of other Anern units using 43 = 49 for a JK BMS; does not apply here.
+- With two batteries in parallel, check whether the battery connected to the inverter aggregates the data of both (communication cable between them and address/DIP per the battery manual).
 
-## Telas do BMS no display
+## BMS screens on the display
 
-Acesso: tela principal, avançando com DOWN (o manual diz segurar ESC; neste aparelho basta navegar). Fotos em `images/05-display-inversor/bms-*.jpg` e manual em `images/04-manual/manual-telas-bms-p12.jpg`.
+Access: main screen, stepping forward with DOWN (the manual says to hold ESC; on this unit just navigating is enough). Photos in `images/05-display-inversor/bms-*.jpg` and the manual in `images/04-manual/manual-telas-bms-p12.jpg`.
 
-| Tela | Manual (esq. / dir.) | Display em 14/11 | Observação |
+| Screen | Manual (left / right) | Display on 11/14 | Note |
 |---|---|---|---|
-| 1 | Tensão total / SOC | 26,6 V / 39% | igual ao manual |
-| 2 | Corrente de carga / de descarga | 0 A / **910** | **diferente**: 910 varia muito, sem unidade; não é a corrente de carga (conferido). Significado desconhecido |
-| 3 | Capacidade nominal (Ah) / ciclos | **24,0 V** / 6 | **diferente**: mostra tensão nominal; ciclos = 6 |
-| 4 | MOS mín. / máx. | 25,2 / 29,2 °C | igual |
-| 5 | Célula máx. / mín. | 3,33 / 3,31 V | igual |
-| 6 | Temp. célula máx. / mín. | 26,2 / 26,2 °C | igual |
+| 1 | Total voltage / SOC | 26.6 V / 39% | same as the manual |
+| 2 | Charge / discharge current | 0 A / **910** | **different**: 910 varies a lot, no unit; it is not the charge current (checked). Meaning unknown |
+| 3 | Rated capacity (Ah) / cycles | **24.0 V** / 6 | **different**: shows rated voltage; cycles = 6 |
+| 4 | MOS min. / max. | 25.2 / 29.2 °C | same |
+| 5 | Cell max. / min. | 3.33 / 3.31 V | same |
+| 6 | Cell temp. max. / min. | 26.2 / 26.2 °C | same |
 
-Diferenças nas telas 2 e 3 → firmware diferente do manual.
+Differences on screens 2 and 3 → firmware differs from the manual.
 
-**Nenhum desses dados aparece no bloco Modbus 4501–4564** (nenhum valor como 333, 262, 292, 910 no dump). Para tê-los no HA seria preciso ler o BMS diretamente (RS485/CAN da Felicity).
+**None of this data appears in the Modbus block 4501–4564** (no value such as 333, 262, 292, 910 in the dump). Getting it into HA would require reading the BMS directly (battery RS485/CAN).
 
-## Saúde em 14/11/2026
+## Health on 11/14/2026
 
-- Células entre 3,31 e 3,33 V (diferença de 20 mV): bem equilibradas.
-- Temperaturas 25–29 °C: normais.
-- 6 ciclos: bateria praticamente nova.
+- Cells between 3.31 and 3.33 V (20 mV difference): well balanced.
+- Temperatures 25–29 °C: normal.
+- 6 cycles: battery practically new.
 
-## Ajustes de bateria recomendados (LiFePO4 24 V, 8S)
+## Recommended battery settings (LiFePO4 24 V, 8S)
 
-| Ajuste | Valor em uso | Faixa segura |
+| Setting | Value in use | Safe range |
 |---|---|---|
-| Bulk (26) | 28,4 V | 26,0–28,8 V |
-| Flutuação (27) | 27,4 V | 26,0–28,8 V, ≤ bulk |
-| Corte (29) | 24,0 V | 24,0–25,0 V, < volta rede |
-| Volta rede (12) | 24,5 V | 21,0–25,5 V |
-| Volta bateria (13) | 27,0 V | 24,0–29,0 V, > volta rede |
-| Corrente total (02) | 70 A (2 baterias) | ≤ 100 A por bateria |
+| Bulk (26) | 28.4 V | 26.0–28.8 V |
+| Float (27) | 27.4 V | 26.0–28.8 V, ≤ bulk |
+| Cut-off (29) | 24.0 V | 24.0–25.0 V, < back to grid |
+| Back to grid (12) | 24.5 V | 21.0–25.5 V |
+| Back to battery (13) | 27.0 V | 24.0–29.0 V, > back to grid |
+| Total current (02) | 70 A (2 batteries) | ≤ 100 A per battery |

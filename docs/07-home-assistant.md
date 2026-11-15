@@ -1,82 +1,80 @@
-# 07 — Especificação do painel no Home Assistant
+# 07 — Home Assistant dashboard specification
 
-Especificação da versão final (14/11/2026, prints em `images/06-dashboard-ha/v5-final-*`). Serve para reconstruir o painel do zero.
+Specification of the final version (11/14/2026, screenshots in `images/06-dashboard-ha/v5-final-*`). It is meant for rebuilding the dashboard from scratch. Entity names are in English.
 
-## Princípios
+## Principles
 
-- Os controles **sempre mostram o valor lido** do inversor; as travas só bloqueiam a escrita.
-- Nenhuma escrita automática: só quando o usuário muda um controle.
-- Um ajuste por vez; validação antes de escrever; releitura depois.
-- Nomes curtos, com o número do programa em todo item configurável; sem número de registrador nem "provável" no nome (status fica em docs).
-- Mesma fonte e espaçamento em todos os cards; cards de entidades (sem tabela markdown, para manter o histórico ao tocar).
-- Precisão: tensões e frequências com 1 casa; correntes e potências sem casas (`suggested_display_precision`). Os campos `number` em modo caixa podem mostrar "27V" em vez de "27.0 V" (limitação do HA, aceitável).
+- Controls **always show the value read** from the inverter; the locks only block writing.
+- No automatic writes: only when the user changes a control.
+- One setting at a time; validation before writing; re-read afterwards.
+- Short names, with the program number on every configurable item; no register number or "probable" in the name (status lives in the docs).
+- Same font and spacing on all cards; entity cards (no markdown tables, so tapping keeps the history).
+- Precision: voltages and frequencies with 1 decimal; currents and powers with none (`suggested_display_precision`). `number` fields in box mode may show "27V" instead of "27.0 V" (HA limitation, acceptable).
 
-## Travas
+## Locks
 
-| Entidade | Função |
+| Entity | Function |
 |---|---|
-| `input_boolean` "Modo edição do inversor" | Libera escrita dos Grupos A, B e D. Desliga sozinho em 10 min |
-| `input_boolean` "Ajustes críticos" | Segunda trava, exigida pelo Grupo C |
+| `input_boolean.anern_edit_mode` "Inverter edit mode (10 min)" | Enables writing for Groups A, B and D. Turns itself off after 10 min |
+| `input_boolean.anern_critical_settings` "Critical settings" | Second lock, required by Group C |
 
-## Grupos de controle
+## Control groups
 
-**Grupo A · prioridades** (select)
-- Fonte de carga (16) → 5017: CSO / SNU / OSO
-- Fonte de saída (01) → 5018: USB / SUB / SBU / MKS
+**Group A · priorities** (select)
+- Charger source (16) → 5017: CSO / SNU / OSO
+- Output source (01) → 5018: USB / SUB / SBU / MKS
 
-**Grupo B · parâmetros** (number, modo caixa)
+**Group B · parameters** (number, box mode)
 
-| Nome | Escrita | Faixa | Passo | Regra |
+| Name | Write | Range | Step | Rule |
 |---|---|---|---|---|
-| Corrente total (02) | 5022 | 10–100 A | 10 | |
-| Corrente rede (11) | 5024 | 2, 10…100 A | | ≤ corrente total |
-| Volta rede (12) | 5025 | 21,0–25,5 V | 0,5 | |
-| Volta bateria (13) | 5026 | 24,0–29,0 V | 0,5 | > volta rede |
-| Carga bulk (26) | 5027 | 26,0–28,8 V | 0,1 | |
-| Flutuação (27) | 5028 | 26,0–28,8 V | 0,1 | ≤ bulk |
-| Corte bateria (29) | 5029 | 24,0–25,0 V | 0,1 | < volta rede |
-| Equalização (31) | 5030 | 26,0–28,8 V | 0,1 | |
-| Tempo equaliz. (33) | 5031 | 5–900 min | 5 | |
-| Limite equaliz. (34) | 5032 | 5–900 min | 5 | |
-| Intervalo equaliz. (35) | 5033 | 0–90 dias | 1 | |
+| Batt. charge current · total (02) | 5022 | 10–100 A | 10 | |
+| Batt. charge current · grid (11) | 5024 | 2, 10…100 A | | ≤ total (02) |
+| Batt. V → back to grid (12) · V mode | 5025 | 21.0–25.5 V | 0.5 | |
+| Batt. V → back to battery (13) · V mode | 5026 | 24.0–29.0 V | 0.5 | > back to grid |
+| Bulk charge voltage (26) | 5027 | 26.0–28.8 V | 0.1 | |
+| Float charge voltage (27) | 5028 | 26.0–28.8 V | 0.1 | ≤ bulk |
+| Batt. low cutoff (29) · V mode | 5029 | 24.0–25.0 V | 0.1 | < back to grid |
+| Equalization voltage (31) | 5030 | 26.0–28.8 V | 0.1 | |
+| Equalization time (33) | 5031 | 5–900 min | 5 | |
+| Equalization timeout (34) | 5032 | 5–900 min | 5 | |
+| Equalization interval (35) | 5033 | 0–90 days | 1 | |
 
-Linha de ajuda: "Um ajuste por vez. Regras: corrente rede ≤ total; corte < volta rede < volta bateria; flutuação ≤ bulk."
+**BMS batteries (type LIB or LIL):** the inverter display shows programs 12, 13 and 29 in % of SOC (e.g. 30% / 60%), while registers 4544/4545/4548 keep the voltage-mode values. The % registers are unknown, so the bridge treats these three as read-only in that case ("· V mode" in the names).
 
-**Grupo C · ajustes críticos** (duas travas + select que só prepara + botão compacto "Aplicar" com confirmação)
-- Faixa CA (03) → 5019: APL / UPS
-- Tipo de bateria (05) → 5020: AGM / FLD / USE / LIB / LIC / LIP / LIL
-- Frequência (09) → 5021: 50 / 60 Hz
-- Tensão de saída (10) → 5023: 220 / 230 / 240 V
-- Avisos: "Lítio com BMS: manter LIL (05)." e "Rede local: 60 Hz / 220 V."
+Help line: "One setting at a time. Rules: grid charge current ≤ total; low cutoff < back to grid < back to battery; float ≤ bulk."
 
-**Grupo D · liga/desliga** (switch, Modo edição; estado lido pelo bit do 4535)
-Alarme (18) 5002 · Luz de fundo (20) 5004 · Reinício após sobrecarga (06) 5005 · Reinício após sobretemperatura (07) 5006 · Apito na falha da rede (22) 5007 · Tela padrão (19) 5008 · Bypass na sobrecarga (23) 5009 · Registro de falhas (25) 5010
+**Group C · critical settings** (two locks + a select that only stages the value + a compact "Apply" button with confirmation)
+- AC input range (03) → 5019: APL / UPS
+- Battery type (05) → 5020: AGM / FLD / USE / LIB / LIC / LIP / LIL
+- Output frequency (09) → 5021: 50 / 60 Hz
+- Output voltage (10) → 5023: 220 / 230 / 240 V
+- Notices: "Lithium with BMS: keep LIL (05)." and "Local grid: 60 Hz / 220 V."
 
-**Sem controle:** programas 37 (grid-tie), 43 (=48, nunca alterar), 44, 45 e LED.
+**Group D · on/off** (switch, edit mode; state read from the 4535 bit)
+Alarm (18) 5002 · Backlight (20) 5004 · Restart on overload (06) 5005 · Restart on over temperature (07) 5006 · Beep on source loss (22) 5007 · Return to default screen (19) 5008 · Overload bypass (23) 5009 · Fault record (25) 5010
 
-## Cards de leitura (ordem)
+**No control:** programs 37 (grid-tie), 43 (=48, never change), 44, 45 and LED.
 
-1. **Aviso:** "ATENÇÃO — confira o manual da bateria e os limites do BMS antes de alterar parâmetros de bateria. Rede: 60 Hz / 220 V. As travas desligam em 10 min. Ajustes críticos exigem as duas travas e confirmação."
-2. Travas de edição
-3. Grupo A · Grupo B · Grupo C · Grupo D
-4. **Solar:** Tensão FV, Potência FV
-5. **Bateria:** Tensão, SOC (BMS), Corrente de carga, Corrente de descarga
-6. **Rede:** Tensão, Frequência
-7. **Saída e consumo:** Tensão, Frequência, Potência ativa, Potência aparente, Uso da capacidade
-8. **Equipamento:** Modo de operação (4501 em texto), Temperatura NTC, LED (leitura), Carga habilitada / Rede ativa / Na bateria (4553)
-9. **Diagnóstico:** Falha (texto), Aviso (texto), Último resultado de ajuste, Dados recentes (<5 min), Equalização (30), Equalização imediata (36), Corte da saída dupla (42) V e %
-10. **Pendências técnicas** (só itens em aberto — ver `10-pendencias.md`)
-11. **Informações do equipamento:** Versão da CPU, potência nominal W/VA, tensão/corrente CA nominal, tensão nominal da bateria, tensão/frequência/corrente de saída nominais
+## Read-only cards (order)
 
-Não repetir em cards de leitura os valores que os controles já mostram.
+1. **Notice:** "WARNING — check the battery manual and the BMS limits before changing battery parameters. Grid: 60 Hz / 220 V. The locks turn off after 10 min. Critical settings require both locks and confirmation."
+2. Edit locks
+3. Group A · Group B · Group C · Group D
+4. **Solar:** PV voltage, PV power
+5. **Battery:** Voltage, SOC (BMS), Charge current, Discharge current
+6. **Grid:** Voltage, Frequency
+7. **Output and load:** Voltage, Frequency, Active power, Apparent power, Load percentage
+8. **Equipment:** Operating mode (4501 as text), NTC temperature, LED (read-only), Load enabled / Grid active / On battery (4553)
+9. **Diagnostics:** Fault (text), Warning (text), Last setting result, Recent data (<5 min), Equalization (30), Immediate equalization (36), Dual output cut-off (42) V and %
+10. **Technical open items** (open items only — see `10-open-items.md`)
+11. **Equipment information:** CPU version, rated power W/VA, rated AC voltage/current, rated battery voltage, rated output voltage/frequency/current
 
-## MQTT e persistência
+Do not repeat on read-only cards the values the controls already show.
 
-- Discovery MQTT com `retain` **e** reenvio quando o HA publicar `online` em `homeassistant/status` (senão as entidades somem a cada reinício do HA).
-- Manter `unique_id`/`entity_id` estáveis ao renomear (mudar só o nome amigável) para não perder histórico.
-- Dashboard em **YAML no caminho que o HA realmente carrega**, versionado em git e com cópia fora do Pi.
-- Prova de persistência: **reboot real do Pi** (`sudo reboot`), não só reinício do HA.
+## MQTT and persistence
 
-## Painel em inglês (para pacote público futuro)
-
-Nomes sugeridos: Charger source (16), Output source (01), Total charge current (02), Grid charge current (11), Back to grid (12), Back to battery (13), Bulk (26), Float (27), Low cutoff (29), Equalization (31/33/34/35), AC input range (03), Battery type (05), Output frequency (09), Output voltage (10), Alarm (18), Backlight (20), Restart on overload (06), Restart on over temperature (07), Beep on source loss (22), Return to default screen (19), Overload bypass (23), Fault record (25).
+- MQTT discovery with `retain` **and** re-sent when HA publishes `online` on `homeassistant/status` (otherwise the entities disappear on every HA restart).
+- Keep `unique_id`/`entity_id` stable when renaming (change only the friendly name) so history is not lost.
+- Dashboard in **YAML at the path HA actually loads**, versioned in git and with a copy off the Pi.
+- Persistence proof: **real reboot of the Pi** (`sudo reboot`), not just an HA restart.

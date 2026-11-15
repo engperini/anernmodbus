@@ -1,0 +1,269 @@
+# Anern AN-SCI-ECO-4200 inverter dashboard (specification: docs/07-home-assistant.md)
+# Needs the package homeassistant/anern_package.yaml and the bridge bridge/bridge.py.
+title: Anern inverter
+views:
+  - title: Solar and battery
+    path: solar
+    icon: mdi:solar-power
+    cards:
+      - type: markdown
+        content: >-
+          **WARNING** — check your battery manual and BMS limits before changing
+          battery parameters. The locks turn off after 10 min.
+          Critical settings need both locks and a confirmation.
+
+      - type: entities
+        title: Edit locks
+        entities:
+          - entity: input_boolean.anern_edit_mode
+            name: Edit mode (10 min)
+          - entity: input_boolean.anern_critical_settings
+            name: Critical settings
+
+      - type: entities
+        title: Group A · priorities
+        entities:
+          - entity: select.anern_charger_source
+            name: Charger source (16)
+          - entity: select.anern_output_source
+            name: Output source (01)
+
+      - type: entities
+        title: Group B · parameters
+        entities:
+          - entity: number.anern_total_charge_current
+            name: Batt. charge current · total (02)
+          - entity: number.anern_grid_charge_current
+            name: Batt. charge current · grid (11)
+          - entity: number.anern_back_to_grid
+            name: Batt. V → back to grid (12) · V mode
+          - entity: number.anern_back_to_battery
+            name: Batt. V → back to battery (13) · V mode
+          - entity: number.anern_bulk_voltage
+            name: Bulk charge voltage (26)
+          - entity: number.anern_float_voltage
+            name: Float charge voltage (27)
+          - entity: number.anern_low_cutoff
+            name: Batt. low cutoff (29) · V mode
+          - entity: number.anern_equalization_voltage
+            name: Equalization voltage (31)
+          - entity: number.anern_equalization_time
+            name: Equalization time (33)
+          - entity: number.anern_equalization_timeout
+            name: Equalization timeout (34)
+          - entity: number.anern_equalization_interval
+            name: Equalization interval (35)
+
+      - type: markdown
+        content: >-
+          One setting at a time. Rules: battery charge current from grid ≤ total;
+          low cutoff < back to grid < back to battery; float ≤ bulk.
+
+          With a lithium battery talking to the BMS (type LIB or LIL), programs 12, 13 and
+          29 are set in % on the inverter display. The % registers are not known yet, so
+          these three show the voltage-mode values and are read-only in that case.
+
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: |-
+              ### Group C · critical settings
+              Lithium battery with BMS communication: keep LIL.
+
+              Output now: {{ states(select.anern_output_frequency_setting) }} /
+              {{ states(select.anern_output_voltage_setting) }} · grid read:
+              {{ states(sensor.anern_grid_frequency) }} Hz / {{ states(sensor.anern_grid_voltage) }} V.
+              Frequency and voltage must match your grid and appliances.
+          - type: entities
+            entities:
+              - entity: select.anern_ac_input_range
+                name: AC input range (03)
+              - type: button
+                name: " "
+                icon: mdi:check-bold
+                action_name: Aplicar
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target:
+                    entity_id: button.anern_ac_input_range_apply
+                  confirmation:
+                    text: Apply the selected AC input range (03) to the inverter?
+              - type: divider
+              - entity: select.anern_battery_type
+                name: Battery type (05)
+              - type: button
+                name: " "
+                icon: mdi:check-bold
+                action_name: Aplicar
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target:
+                    entity_id: button.anern_battery_type_apply
+                  confirmation:
+                    text: Apply the selected battery type (05)? Lithium with BMS communication uses LIL.
+              - type: divider
+              - entity: select.anern_output_frequency_setting
+                name: Output frequency (09)
+              - type: button
+                name: " "
+                icon: mdi:check-bold
+                action_name: Aplicar
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target:
+                    entity_id: button.anern_output_frequency_setting_apply
+                  confirmation:
+                    text: Apply the selected output frequency (09)? It must match your grid.
+              - type: divider
+              - entity: select.anern_output_voltage_setting
+                name: Output voltage (10)
+              - type: button
+                name: " "
+                icon: mdi:check-bold
+                action_name: Aplicar
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target:
+                    entity_id: button.anern_output_voltage_setting_apply
+                  confirmation:
+                    text: Apply the selected output voltage (10)? It must match your appliances.
+
+      - type: entities
+        title: Group D · on/off
+        entities:
+          - entity: switch.anern_alarm
+            name: Alarm (18)
+          - entity: switch.anern_backlight
+            name: Backlight (20)
+          - entity: switch.anern_restart_overload
+            name: Restart on overload (06)
+          - entity: switch.anern_restart_overtemp
+            name: Restart on over temperature (07)
+          - entity: switch.anern_beep_source_loss
+            name: Beep on source loss (22)
+          - entity: switch.anern_default_screen
+            name: Return to default screen (19)
+          - entity: switch.anern_overload_bypass
+            name: Overload bypass (23)
+          - entity: switch.anern_fault_record
+            name: Fault record (25)
+
+      - type: entities
+        title: Solar
+        entities:
+          - entity: sensor.anern_pv_voltage
+            name: PV voltage
+          - entity: sensor.anern_pv_power
+            name: PV power
+
+      - type: entities
+        title: Battery
+        entities:
+          - entity: sensor.anern_battery_voltage
+            name: Voltage
+          - entity: sensor.anern_battery_soc
+            name: SOC (BMS)
+          - entity: sensor.anern_battery_charge_current
+            name: Charge current
+          - entity: sensor.anern_battery_discharge_current
+            name: Discharge current
+
+      - type: entities
+        title: Grid
+        entities:
+          - entity: sensor.anern_grid_voltage
+            name: Voltage
+          - entity: sensor.anern_grid_frequency
+            name: Frequency
+
+      - type: entities
+        title: Output and load
+        entities:
+          - entity: sensor.anern_output_voltage
+            name: Voltage
+          - entity: sensor.anern_output_frequency
+            name: Frequency
+          - entity: sensor.anern_load_active_power
+            name: Active power
+          - entity: sensor.anern_load_apparent_power
+            name: Apparent power
+          - entity: sensor.anern_load_percent
+            name: Load
+
+      - type: entities
+        title: Equipment
+        entities:
+          - entity: sensor.anern_operation_mode
+            name: Operation mode
+          - entity: sensor.anern_ntc_temperature
+            name: NTC temperature
+          - entity: sensor.anern_led_text
+            name: LED (39) · read only
+          - entity: binary_sensor.anern_charge_enabled
+            name: Charging enabled
+          - entity: binary_sensor.anern_grid_active
+            name: Grid active
+          - entity: binary_sensor.anern_on_battery
+            name: On battery
+
+      - type: entities
+        title: Diagnostics
+        entities:
+          - entity: sensor.anern_fault_text
+            name: Fault
+          - entity: sensor.anern_warning_text
+            name: Warning
+          - entity: sensor.anern_last_result
+            name: Last setting result
+          - entity: binary_sensor.inverter_data_fresh_5_min
+            name: Data fresh (<5 min)
+          - entity: binary_sensor.anern_equalization
+            name: Equalization (30) · read only
+          - entity: binary_sensor.anern_equalization_now
+            name: Equalize now (36) · read only
+          - entity: sensor.anern_dual_cutoff_voltage
+            name: Dual output cutoff (42) · V
+          - entity: sensor.anern_dual_cutoff_percent
+            name: Dual output cutoff (42) · %
+
+      - type: entities
+        title: Equipment information
+        entities:
+          - entity: sensor.anern_cpu_version
+            name: CPU version (4518)
+          - entity: sensor.anern_rated_power
+            name: Rated power
+          - entity: sensor.anern_rated_apparent_power
+            name: Rated apparent power
+          - entity: sensor.anern_rated_ac_voltage
+            name: Rated AC voltage
+          - entity: sensor.anern_rated_ac_current
+            name: Rated AC current
+          - entity: sensor.anern_rated_battery_voltage
+            name: Rated battery voltage
+          - entity: sensor.anern_rated_output_voltage
+            name: Rated output voltage
+          - entity: sensor.anern_rated_frequency
+            name: Rated frequency
+          - entity: sensor.anern_rated_output_current
+            name: Rated output current
+
+      - type: markdown
+        content: |-
+          **Open items** (see docs/10-open-items.md)
+
+          - 4501: codes 0, 1, 2, 5 and 6 not observed yet.
+          - Programs 12, 13 and 29 in % (BMS mode; display showed 30% and 60% for 12/13): registers not found in 4501–4564.
+          - 4553: on 2026-11-15 the mode was Battery (4501 = 3) with "on battery" off; the bit map needs review.
+          - 4555/4556: almost fixed (10 → 11); not charge current nor cycles. Meaning unknown.
+          - 4554: program 38 or battery state; confirm at night.
+          - Programs 37 and 41 (value 0) and 44 (value 1, candidates 4520/4560): registers not identified.
+          - 4519, 4558, 4559, 4562–4564: unknown.
+          - LED: state in 4561; write address unknown.
+          - 4529: confirm as the warning code when a real warning shows up.
+          - Detailed BMS data: outside the 4501–4564 block.
+          - Writes 5019–5021, 5023–5033 and Group D: not tested yet (first use: echo of the current value).

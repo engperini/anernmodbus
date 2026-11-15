@@ -47,10 +47,10 @@ class DecodeTests(unittest.TestCase):
         self.assertEqual(v["ntc_temperature"], 40)
 
     def test_texts(self):
-        self.assertEqual(self.v["operation_mode"], "Bypass (rede direto)")
+        self.assertEqual(self.v["operation_mode"], "Bypass (grid direct)")
         self.assertEqual(self.v["cpu_version"], "U1 75 11")
-        self.assertEqual(self.v["fault_text"], "Nenhum")
-        self.assertEqual(self.v["led_text"], "LOF (desligado)")
+        self.assertEqual(self.v["fault_text"], "None")
+        self.assertEqual(self.v["led_text"], "LOF (off)")
 
     def test_swapped_config_flags_match_display(self):
         self.assertEqual(swap16(292), 0x2401)
@@ -74,6 +74,16 @@ class DecodeTests(unittest.TestCase):
         self.assertEqual((v["back_to_grid"], v["back_to_battery"], v["bulk_voltage"]), (24.5, 27.0, 28.4))
         self.assertEqual((v["float_voltage"], v["low_cutoff"], v["equalization_voltage"]), (27.4, 24.0, 27.0))
         self.assertEqual((v["equalization_time"], v["equalization_timeout"], v["equalization_interval"]), (60, 120, 30))
+
+
+class SocModeTests(unittest.TestCase):
+    def test_12_13_29_read_only_with_bms_battery(self):
+        from anern_map import soc_mode_block
+        v = decode_block(dump_words())          # battery type LIL
+        for key in ("back_to_grid", "back_to_battery", "low_cutoff"):
+            self.assertIsNotNone(soc_mode_block(v, key))
+        self.assertIsNone(soc_mode_block(v, "bulk_voltage"))
+        self.assertIsNone(soc_mode_block(dict(v, battery_type="AGM"), "back_to_grid"))
 
 
 class FrameTests(unittest.TestCase):
@@ -155,13 +165,13 @@ class LockTests(unittest.TestCase):
     def test_write_blocked_without_locks(self):
         b = self.make_bridge()
         asyncio.run(b._execute(self.NoBLE(), "output_source", "USB"))
-        self.assertIn("bloqueado", b.published[-1][1])
+        self.assertIn("blocked", b.published[-1][1])
 
     def test_group_c_needs_both_locks(self):
         b = self.make_bridge()
         b.locks = {"edit": True, "critical": False}
         asyncio.run(b._execute(self.NoBLE(), "battery_type", "LIL"))
-        self.assertIn("Ajustes críticos", b.published[-1][1])
+        self.assertIn("Critical settings", b.published[-1][1])
 
     def test_group_c_select_only_prepares(self):
         b = self.make_bridge()

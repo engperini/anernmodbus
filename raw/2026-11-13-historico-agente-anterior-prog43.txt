@@ -89,6 +89,6 @@ Isso demonstra que:
 
 Configuração de referência do projeto: função 43 = `48`, manter inalterada.
 
-Para futuras alterações, especialmente a instalação de uma segunda bateria Felicity em paralelo, precisamos verificar o gerenciamento de comunicação entre os BMS e o inversor. O funcionamento atual com uma bateria não comprova automaticamente a comunicação correta de duas baterias.
+Para futuras alterações, especialmente a instalação de uma segunda bateria de lítio em paralelo, precisamos verificar o gerenciamento de comunicação entre os BMS e o inversor. O funcionamento atual com uma bateria não comprova automaticamente a comunicação correta de duas baterias.
 
 Este é nosso histórico técnico consolidado até agora, distinguindo o que efetivamente testamos daquilo que permanece pendente de validação.

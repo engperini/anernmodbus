@@ -5,7 +5,7 @@
 | 4501 codes 0, 1, 2, 5, 6 | not observed | note the value when the inverter is in standby, powering on, in fault, etc. |
 | 4553 status flags | **doubtful** | on 11/15 08:42: 4501 = 3 (Battery), 4553 = 0x7614 after the swap, and bit 0x0100 ("on battery") **off**. Revise the bit map by comparing several states |
 | 4554 | **probably solved** | index 0–7 of the LCD power-flow screen (manual 5.6 order); 2 and 7 observed and consistent. Confirm 0, 1, 3–6 when they happen (night on battery should give 6 or 7→6) |
-| 4555 / 4556 | unknown (10 → 11) | observe over several days; compare with app fields |
+| 4555 / 4556 | **hypothesis: event counter** | always equal: 10 (11/13), 11 (11/14), **12** right after the output was cut and restored by toggling program 41 on 11/15 (the inverter itself was not restarted). Probably a counter of output on/off (or similar) events; confirm the next time the output is cut |
 | Prog 37 and 41 (value 0) | register not identified | change one of them with no effect and see which register changes (e.g. 41 with 37 off) |
 | Prog 44 (value 1) | 4520 or 4560 | change 44 to dIS and re-read |
 | 4519, 4516, 4558, 4559, 4562–4564 | unknown | same |

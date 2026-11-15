@@ -47,7 +47,7 @@ class DecodeTests(unittest.TestCase):
         self.assertEqual(v["ntc_temperature"], 40)
 
     def test_texts(self):
-        self.assertEqual(self.v["operation_mode"], "Bypass (grid direct)")
+        self.assertEqual(self.v["operation_mode"], "Line mode (bypass)")
         self.assertIn("4554=2", self.v["unknown_registers"])
         self.assertEqual(self.v["cpu_version"], "U1 75 11")
         self.assertEqual(self.v["fault_text"], "No fault")

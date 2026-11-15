@@ -78,3 +78,6 @@ Do not repeat on read-only cards the values the controls already show.
 - Keep `unique_id`/`entity_id` stable when renaming (change only the friendly name) so history is not lost.
 - Dashboard in **YAML at the path HA actually loads**, versioned in git and with a copy off the Pi.
 - Persistence proof: **real reboot of the Pi** (`sudo reboot`), not just an HA restart.
+
+
+Equalization (manual 5.7): program 30 must be enabled first; then it runs at the interval of program 35 or immediately with program 36. Programs 30 and 36 are read-only here (write address unknown).

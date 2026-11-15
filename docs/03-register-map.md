@@ -57,14 +57,16 @@ Status: ✅ confirmed (display, app or test) · 🟡 probable · ❓ unknown
 | Code | Mode | Status |
 |---|---|---|
 | 0 | Power on | family |
-| 1 | Standby | family |
+| 1 | Standby (no output, can still charge from PV/mains; manual 5.6) | family |
 | 2 | Line (grid) | family |
-| 3 | Battery (house powered by the battery) | ✅ observed |
-| 4 | Bypass (grid passthrough; e.g. SBU with low battery, or USB) | ✅ observed |
+| 3 | **Battery mode** (battery and/or solar supply the loads; the vendor app calls it "Invert Mode") | ✅ observed |
+| 4 | **Line mode / bypass** (mains supplies the loads and can charge; e.g. SBU with low battery, or USB) | ✅ observed |
 | 5 | Charging | family |
 | 6 | Fault | family |
 
-"Family" = table from the sibling ISolar SMG/Anenji inverters (Solar2MQTT).
+"Family" = table from the sibling ISolar SMG/Anenji inverters (Solar2MQTT). Manual section 5.6
+(`images/04-manual/manual-operating-modes-*.jpg`) lists Standby, Line, Grid-Tie and Battery modes;
+codes 0, 1, 2, 5 and 6 and the code of Grid-Tie mode are still to be observed.
 
 ### 4535 — Configuration flags (swap the bytes first)
 

@@ -65,8 +65,8 @@ def swap16(value: int) -> int:
 # ---------------------------------------------------------------- texts
 
 OPERATION_MODES = {
-    0: "Power on", 1: "Standby", 2: "Line", 3: "Invert (battery/solar)",
-    4: "Bypass (grid direct)", 5: "Charging", 6: "Fault",
+    0: "Power on", 1: "Standby", 2: "Line", 3: "Battery mode (inverter)",
+    4: "Line mode (bypass)", 5: "Charging", 6: "Fault",
 }
 
 FAULTS = {

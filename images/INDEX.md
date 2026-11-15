@@ -20,6 +20,8 @@ Metadata (EXIF/GPS) removed. Images showing the dongle's serial number were remo
 - `manual-codigos-alarme-bateria-p13.jpg`, `manual-codigos-falha-bateria-p14.jpg` — battery codes.
 - `manual-codigos-falha-aviso-inversor-p33.jpg` — inverter fault (5.9) and warning (5.10) codes.
 - `manual-troubleshooting.jpg` — troubleshooting table.
+- `manual-operating-modes-p29.jpg`, `manual-operating-modes-battery-p30.jpg` — section 5.6, operating modes (Standby, Line, Grid-Tie, Battery) and their LCD screens.
+- `manual-rgb-light-equalization.jpg` — RGB light colours per mode (battery red, utility blue, PV purple) and section 5.7, battery equalization (enable program 30, then 35 interval or 36 now).
 
 ## 05-display-inversor
 - `display-39-LON.jpg` — program 39 (LED) on.

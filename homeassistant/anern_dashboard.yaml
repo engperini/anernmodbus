@@ -60,9 +60,10 @@ views:
           One setting at a time. Rules: grid current ≤ total current;
           low cutoff < back to grid < back to battery; float ≤ bulk.
 
-          12, 13 and 29 are in volts, or in % of SOC when the battery type (05) is
-          LIB/LIL (BMS). Type 30 or 30% for %. Ranges in % (manual): 12 = 10–50 step 5,
-          13 = 30–100 step 5, 29 = 5–30.
+          12, 13 and 29 are battery voltages. With a BMS battery (type LIB/LIL) the
+          inverter uses % of SOC for them, but that % is not exposed over the dongle
+          (the vendor app shows volts too): set it on the inverter display. Here they
+          are read-only in that case.
 
       - type: vertical-stack
         cards:

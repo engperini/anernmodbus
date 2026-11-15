@@ -40,7 +40,7 @@ Specification of the final version (11/14/2026, screenshots in `images/06-dashbo
 | Equaliz. timeout (34) | 5032 | 5–900 min | 5 | |
 | Equaliz. interval (35) | 5033 | 0–90 days | 1 | |
 
-**BMS batteries (type LIB or LIL):** per the manual, programs 12, 13 and 29 are then set in % of SOC (12: 10–50 % step 5, 13: 30–100 % step 5, 29: 5–30 %). The bridge accepts "30" or "30%" in that mode and writes the raw percent to the same register (5025/5026/5029). On 2026-11-15 the display showed 30%/60% while 4544/4545 still read 245/270 (volts); the first echo write in % mode will confirm whether the register switches to the % value.
+**BMS batteries (type LIB or LIL):** per the manual, programs 12, 13 and 29 are then set in % of SOC (12: 10–50 % step 5, 13: 30–100 % step 5, 29: 5–30 %). That % is not exposed over the dongle: 4544/4545/4548 keep the voltage values, FC06 of a % value to 5025 is refused (exception 3), a read-only scan found no % values, and the vendor app shows volts too. The bridge keeps these three read-only in BMS mode; set the % on the inverter display.
 
 Help line: "One setting at a time. Rules: grid charge current ≤ total; low cutoff < back to grid < back to battery; float ≤ bulk."
 

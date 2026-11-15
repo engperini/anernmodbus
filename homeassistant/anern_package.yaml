@@ -15,6 +15,24 @@ input_boolean:
     name: "Inverter critical settings"
     icon: mdi:shield-lock
 
+# Energy delivered by the inverter output (Riemann sum of the output active power)
+# and a monthly meter of it (resets on the 1st).
+sensor:
+  - platform: integration
+    source: sensor.anern_load_active_power
+    name: "Inverter output energy"
+    unique_id: anern_output_energy
+    unit_prefix: k
+    round: 2
+    method: left
+
+utility_meter:
+  anern_output_energy_monthly:
+    source: sensor.inverter_output_energy
+    name: "Inverter output energy (month)"
+    unique_id: anern_output_energy_monthly
+    cycle: monthly
+
 template:
   - binary_sensor:
       - name: "Inverter data fresh (<5 min)"

@@ -49,6 +49,7 @@ class DecodeTests(unittest.TestCase):
     def test_texts(self):
         self.assertEqual(self.v["operation_mode"], "Line mode (bypass)")
         self.assertIn("4554=2", self.v["unknown_registers"])
+        self.assertEqual(self.v["power_flow"], "Grid-connected: mains and solar, charging")
         self.assertEqual(self.v["cpu_version"], "U1 75 11")
         self.assertEqual(self.v["fault_text"], "No fault")
         self.assertEqual(self.v["led_text"], "LOF (off)")
@@ -103,6 +104,18 @@ class SocModeTests(unittest.TestCase):
             validate_soc_rules({"back_to_grid": 30, "back_to_battery": 60, "low_cutoff": 20}, "back_to_grid", 60)
         # current values still in volts: % rules are not applied
         validate_soc_rules({"back_to_grid": 245, "back_to_battery": 270, "low_cutoff": 240}, "back_to_grid", 30)
+
+
+class PowerFlowTests(unittest.TestCase):
+    def test_battery_mode_substates(self):
+        from anern_map import power_flow
+        base = {"status": 3, "pv_power": 0, "battery_charge_current": 0, "battery_discharge_current": 5, "grid_voltage": 0}
+        self.assertEqual(power_flow(base), "Battery supplies the loads")
+        self.assertEqual(power_flow(dict(base, pv_power=300)), "Battery and solar supply the loads")
+        self.assertEqual(power_flow(dict(base, pv_power=500, battery_discharge_current=0, battery_charge_current=6)),
+                         "Solar supplies the loads and charges the battery")
+        self.assertEqual(power_flow(dict(base, status=1, pv_power=200, battery_discharge_current=0,
+                                         battery_charge_current=5, grid_voltage=220)), "Standby: PV and mains charging")
 
 
 class FrameTests(unittest.TestCase):

@@ -51,6 +51,7 @@ DEVICE = {
 # key, name, unit, device_class, state_class, precision, icon, diagnostic
 SENSORS = [
     ("operation_mode", "Operation mode", None, None, None, None, "mdi:state-machine", False),
+    ("power_flow", "Power flow", None, None, None, None, "mdi:transmission-tower-export", False),
     ("status", "Operation mode code (4501)", None, None, None, 0, None, True),
     ("pv_voltage", "PV voltage", "V", "voltage", "measurement", 1, None, False),
     ("pv_power", "PV power", "W", "power", "measurement", 0, None, False),

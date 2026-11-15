@@ -68,6 +68,11 @@ Status: ✅ confirmed (display, app or test) · 🟡 probable · ❓ unknown
 (`images/04-manual/manual-operating-modes-*.jpg`) lists Standby, Line, Grid-Tie and Battery modes;
 codes 0, 1, 2, 5 and 6 and the code of Grid-Tie mode are still to be observed.
 
+The LCD shows a sub-state inside each mode (manual 5.6): Standby = PV and mains charging / mains
+charging / PV charging; Line = grid-connected (mains + PV) / mains charging; Grid-Tie =
+grid-connected; Battery = battery and solar supply the loads / solar supplies the loads. The bridge
+derives the same text (sensor "Power flow") from 4501, PV power and the battery currents.
+
 ### 4535 — Configuration flags (swap the bytes first)
 
 | Bit (after swap) | Setting | Prog | Write | On 11/14 |

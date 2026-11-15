@@ -203,6 +203,8 @@ views:
         entities:
           - entity: sensor.anern_operation_mode
             name: Operation mode
+          - entity: sensor.anern_power_flow
+            name: Power flow
           - entity: sensor.anern_ntc_temperature
             name: NTC temperature
           - entity: sensor.anern_led_text

@@ -175,6 +175,34 @@ STATUS_BITS = {
 }
 
 
+def power_flow(v: Dict[str, Any]) -> str:
+    """Sub-state shown on the LCD for each mode (manual 5.6), derived from the readings."""
+    pv = v["pv_power"] > 0
+    charging = v["battery_charge_current"] > 0
+    discharging = v["battery_discharge_current"] > 0
+    grid = v["grid_voltage"] > 50
+    mode = v["status"]
+    if mode == 3:                                   # battery mode
+        if pv and discharging:
+            return "Battery and solar supply the loads"
+        if pv:
+            return "Solar supplies the loads" + (" and charges the battery" if charging else "")
+        return "Battery supplies the loads"
+    if mode in (2, 4):                              # line mode
+        if pv:
+            return "Grid-connected: mains and solar" + (", charging" if charging else "")
+        return "Mains supplies the loads" + (" and charges the battery" if charging else "")
+    if mode == 1:                                   # standby
+        if charging and pv and grid:
+            return "Standby: PV and mains charging"
+        if charging and pv:
+            return "Standby: PV charging"
+        if charging and grid:
+            return "Standby: mains charging"
+        return "Standby: no output"
+    return OPERATION_MODES.get(mode, f"Code {mode}")
+
+
 def reg(words: List[int], register: int) -> int:
     return words[register - BLOCK_START]
 
@@ -187,6 +215,7 @@ def decode_block(words: List[int]) -> Dict[str, Any]:
         raw = reg(words, register)
         values[key] = round(raw * scale, precision) if precision else int(round(raw * scale))
     values["operation_mode"] = OPERATION_MODES.get(values["status"], f"Code {values['status']}")
+    values["power_flow"] = power_flow(values)
     values["fault_text"] = code_text(values["fault_code"], FAULTS, "No fault")
     values["warning_text"] = code_text(values["warning_code"], WARNINGS, "No warning")
     # Registers whose meaning is still open (docs/10): kept visible to correlate over time.

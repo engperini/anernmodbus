@@ -262,9 +262,9 @@ views:
 
           - 4501: codes 0, 1, 2, 5 and 6 not observed yet.
           - Programs 12, 13 and 29 in % (BMS mode; display showed 30% and 60% for 12/13): registers not found in 4501–4564.
-          - 4553: on 2026-11-15 the mode was Battery (4501 = 3) with "on battery" off; the bit map needs review.
+          - 4553: in invert mode (4501 = 3) bit 0x0100 is off and the vendor app says mains relay OFF, so 0x0100 may mean "mains relay on".
           - 4555/4556: almost fixed (10 → 11); not charge current nor cycles. Meaning unknown.
-          - 4554: program 38 or battery state; confirm at night.
+          - 4554: not program 38 (the app shows 38 = 2.0 A while 4554 = 7); probably a battery/state code. Watch the "Unknown registers (raw)" sensor.
           - Programs 37 and 41 (value 0) and 44 (value 1, candidates 4520/4560): registers not identified.
           - 4519, 4558, 4559, 4562–4564: unknown.
           - LED: state in 4561; write address unknown.

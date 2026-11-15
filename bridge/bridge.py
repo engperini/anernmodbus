@@ -85,6 +85,7 @@ SENSORS = [
     ("rated_output_current", "Rated output current", "A", "current", None, 0, None, False),
     ("config_flags", "Configuration flags (4535)", None, None, None, 0, None, True),
     ("status_flags", "Status flags (4553)", None, None, None, 0, None, True),
+    ("unknown_registers", "Unknown registers (raw)", None, None, None, None, "mdi:help-box", True),
 ]
 
 BINARY_SENSORS = [

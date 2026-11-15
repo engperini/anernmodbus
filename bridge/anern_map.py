@@ -65,7 +65,7 @@ def swap16(value: int) -> int:
 # ---------------------------------------------------------------- texts
 
 OPERATION_MODES = {
-    0: "Power on", 1: "Standby", 2: "Line", 3: "Battery",
+    0: "Power on", 1: "Standby", 2: "Line", 3: "Invert (battery/solar)",
     4: "Bypass (grid direct)", 5: "Charging", 6: "Fault",
 }
 
@@ -148,6 +148,8 @@ TELEMETRY: Dict[str, Tuple[int, float, int]] = {
     "led_state": (4561, 1, 0),
 }
 
+UNKNOWN_REGISTERS = (4515, 4516, 4519, 4520, 4554, 4555, 4556, 4558, 4559, 4560, 4562, 4563, 4564)
+
 CONFIG_FLAGS_REG = 4535
 STATUS_FLAGS_REG = 4553
 
@@ -187,6 +189,8 @@ def decode_block(words: List[int]) -> Dict[str, Any]:
     values["operation_mode"] = OPERATION_MODES.get(values["status"], f"Code {values['status']}")
     values["fault_text"] = code_text(values["fault_code"], FAULTS, "No fault")
     values["warning_text"] = code_text(values["warning_code"], WARNINGS, "No warning")
+    # Registers whose meaning is still open (docs/10): kept visible to correlate over time.
+    values["unknown_registers"] = " ".join(f"{r}={reg(words, r)}" for r in UNKNOWN_REGISTERS)
     cpu = reg(words, 4518)
     values["cpu_version"] = f"U1 {cpu // 100:02d} {cpu % 100:02d}"
     values["led_text"] = {0: "LOF (off)", 1: "LON (on)"}.get(values["led_state"], str(values["led_state"]))

@@ -43,7 +43,7 @@ Status: ✅ confirmed (display, app or test) · 🟡 probable · ❓ unknown
 | 4534 | 55 | Dual output cut-off (prog 42), in % | % | ✅ |
 | 4535 | 292 | Configuration flags (swapped bytes) | bitmask | ✅ |
 | 4553 | 5478 | Status flags (swapped bytes) | bitmask | 🟡 |
-| 4554 | 2 | prog 38 (2 A) **or** battery state (2 = charging) | | ❓ |
+| 4554 | 2 | **LCD power-flow screen** 0–7, in the order of the manual 5.6 screens (see below) | enum | 🟡 2 and 7 observed |
 | 4555 | 11 | — (10 on 11/13; not a current nor cycles) | | ❓ |
 | 4556 | 11 | — (same as 4555) | | ❓ |
 | 4557 | 40 | Max. NTC temperature | °C | ✅ |
@@ -71,7 +71,19 @@ codes 0, 1, 2, 5 and 6 and the code of Grid-Tie mode are still to be observed.
 The LCD shows a sub-state inside each mode (manual 5.6): Standby = PV and mains charging / mains
 charging / PV charging; Line = grid-connected (mains + PV) / mains charging; Grid-Tie =
 grid-connected; Battery = battery and solar supply the loads / solar supplies the loads. The bridge
-derives the same text (sensor "Power flow") from 4501, PV power and the battery currents.
+shows this text (sensor "Power flow") from **4554**, which is the index of the LCD screen in the
+manual order; it falls back to a value derived from 4501, PV power and the battery currents:
+
+| 4554 | LCD screen (manual 5.6) | Seen |
+|---|---|---|
+| 0 | Standby · PV and mains charging | |
+| 1 | Standby · mains charging | |
+| 2 | PV charging | 11/14 (grid passthrough, PV charging 7 A) |
+| 3 | Line · grid-connected (mains + PV) | |
+| 4 | Line · mains charging | |
+| 5 | Grid-tie · grid-connected | |
+| 6 | Battery · battery and solar supply the loads | |
+| 7 | Battery · solar supplies the loads | 11/15 (battery mode, PV 450–516 W, no discharge) |
 
 ### 4535 — Configuration flags (swap the bytes first)
 

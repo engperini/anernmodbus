@@ -48,8 +48,8 @@ class DecodeTests(unittest.TestCase):
 
     def test_texts(self):
         self.assertEqual(self.v["operation_mode"], "Line mode (bypass)")
-        self.assertIn("4554=2", self.v["unknown_registers"])
-        self.assertEqual(self.v["power_flow"], "Grid-connected: mains and solar, charging")
+        self.assertEqual(self.v["lcd_state"], 2)
+        self.assertEqual(self.v["power_flow"], "PV charging")
         self.assertEqual(self.v["cpu_version"], "U1 75 11")
         self.assertEqual(self.v["fault_text"], "No fault")
         self.assertEqual(self.v["led_text"], "LOF (off)")

@@ -148,7 +148,7 @@ TELEMETRY: Dict[str, Tuple[int, float, int]] = {
     "led_state": (4561, 1, 0),
 }
 
-UNKNOWN_REGISTERS = (4515, 4516, 4519, 4520, 4554, 4555, 4556, 4558, 4559, 4560, 4562, 4563, 4564)
+UNKNOWN_REGISTERS = (4515, 4516, 4519, 4520, 4555, 4556, 4558, 4559, 4560, 4562, 4563, 4564)
 
 CONFIG_FLAGS_REG = 4535
 STATUS_FLAGS_REG = 4553
@@ -172,6 +172,20 @@ STATUS_BITS = {
     "on_battery": 0x0100,
     "grid_active": 0x0200 | 0x2000,
     "charge_enabled": 0x4000,
+}
+
+
+# 4554 = index of the LCD power-flow screen, in the order of the manual (5.6):
+# observed 2 (11/14, grid passthrough + PV charging) and 7 (11/15, solar supplies the loads).
+LCD_STATES = {
+    0: "Standby: PV and mains charging",
+    1: "Standby: mains charging",
+    2: "PV charging",
+    3: "Grid-connected: mains and solar",
+    4: "Line: mains charging",
+    5: "Grid-tie: grid-connected",
+    6: "Battery and solar supply the loads",
+    7: "Solar supplies the loads",
 }
 
 
@@ -215,7 +229,9 @@ def decode_block(words: List[int]) -> Dict[str, Any]:
         raw = reg(words, register)
         values[key] = round(raw * scale, precision) if precision else int(round(raw * scale))
     values["operation_mode"] = OPERATION_MODES.get(values["status"], f"Code {values['status']}")
-    values["power_flow"] = power_flow(values)
+    lcd = reg(words, 4554)
+    values["lcd_state"] = lcd
+    values["power_flow"] = LCD_STATES.get(lcd) or power_flow(values)
     values["fault_text"] = code_text(values["fault_code"], FAULTS, "No fault")
     values["warning_text"] = code_text(values["warning_code"], WARNINGS, "No warning")
     # Registers whose meaning is still open (docs/10): kept visible to correlate over time.

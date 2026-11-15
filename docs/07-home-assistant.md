@@ -24,23 +24,23 @@ Specification of the final version (11/14/2026, screenshots in `images/06-dashbo
 - Charger source (16) → 5017: CSO / SNU / OSO
 - Output source (01) → 5018: USB / SUB / SBU / MKS
 
-**Group B · parameters** (number, box mode)
+**Group B · battery charging** (number, box mode)
 
 | Name | Write | Range | Step | Rule |
 |---|---|---|---|---|
-| Batt. charge current · total (02) | 5022 | 10–100 A | 10 | |
-| Batt. charge current · grid (11) | 5024 | 2, 10…100 A | | ≤ total (02) |
-| Batt. V → back to grid (12) · V mode | 5025 | 21.0–25.5 V | 0.5 | |
-| Batt. V → back to battery (13) · V mode | 5026 | 24.0–29.0 V | 0.5 | > back to grid |
-| Bulk charge voltage (26) | 5027 | 26.0–28.8 V | 0.1 | |
-| Float charge voltage (27) | 5028 | 26.0–28.8 V | 0.1 | ≤ bulk |
-| Batt. low cutoff (29) · V mode | 5029 | 24.0–25.0 V | 0.1 | < back to grid |
-| Equalization voltage (31) | 5030 | 26.0–28.8 V | 0.1 | |
-| Equalization time (33) | 5031 | 5–900 min | 5 | |
-| Equalization timeout (34) | 5032 | 5–900 min | 5 | |
-| Equalization interval (35) | 5033 | 0–90 days | 1 | |
+| Max current · total (02) | 5022 | 10–100 A | 10 | |
+| Max current · grid (11) | 5024 | 2, 10…100 A | | ≤ total (02) |
+| Back to grid V (12) | 5025 | 21.0–25.5 V | 0.5 | |
+| Back to battery V (13) | 5026 | 24.0–29.0 V | 0.5 | > back to grid |
+| Bulk voltage (26) | 5027 | 26.0–28.8 V | 0.1 | |
+| Float voltage (27) | 5028 | 26.0–28.8 V | 0.1 | ≤ bulk |
+| Low cutoff V (29) | 5029 | 24.0–25.0 V | 0.1 | < back to grid |
+| Equaliz. voltage (31) | 5030 | 26.0–28.8 V | 0.1 | |
+| Equaliz. time (33) | 5031 | 5–900 min | 5 | |
+| Equaliz. timeout (34) | 5032 | 5–900 min | 5 | |
+| Equaliz. interval (35) | 5033 | 0–90 days | 1 | |
 
-**BMS batteries (type LIB or LIL):** the inverter display shows programs 12, 13 and 29 in % of SOC (e.g. 30% / 60%), while registers 4544/4545/4548 keep the voltage-mode values. The % registers are unknown, so the bridge treats these three as read-only in that case ("· V mode" in the names).
+**BMS batteries (type LIB or LIL):** the inverter display shows programs 12, 13 and 29 in % of SOC (e.g. 30% / 60%), while registers 4544/4545/4548 keep the voltage-mode values. The % registers are unknown, so the bridge treats these three as read-only in that case.
 
 Help line: "One setting at a time. Rules: grid charge current ≤ total; low cutoff < back to grid < back to battery; float ≤ bulk."
 
@@ -52,7 +52,7 @@ Help line: "One setting at a time. Rules: grid charge current ≤ total; low cut
 - Notices: "Lithium with BMS: keep LIL (05)." and "Local grid: 60 Hz / 220 V."
 
 **Group D · on/off** (switch, edit mode; state read from the 4535 bit)
-Alarm (18) 5002 · Backlight (20) 5004 · Restart on overload (06) 5005 · Restart on over temperature (07) 5006 · Beep on source loss (22) 5007 · Return to default screen (19) 5008 · Overload bypass (23) 5009 · Fault record (25) 5010
+Alarm (18) 5002 · Backlight (20) 5004 · Restart on overload (06) 5005 · Restart on overtemp (07) 5006 · Beep on source loss (22) 5007 · Return to main screen (19) 5008 · Overload bypass (23) 5009 · Fault record (25) 5010
 
 **No control:** programs 37 (grid-tie), 43 (=48, never change), 44, 45 and LED.
 

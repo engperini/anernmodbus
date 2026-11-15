@@ -29,39 +29,39 @@ views:
             name: Output source (01)
 
       - type: entities
-        title: Group B · parameters
+        title: Group B · battery charging
         entities:
           - entity: number.anern_total_charge_current
-            name: Batt. charge current · total (02)
+            name: Max current · total (02)
           - entity: number.anern_grid_charge_current
-            name: Batt. charge current · grid (11)
+            name: Max current · grid (11)
           - entity: number.anern_back_to_grid
-            name: Batt. V → back to grid (12) · V mode
+            name: Back to grid V (12)
           - entity: number.anern_back_to_battery
-            name: Batt. V → back to battery (13) · V mode
+            name: Back to battery V (13)
           - entity: number.anern_bulk_voltage
-            name: Bulk charge voltage (26)
+            name: Bulk voltage (26)
           - entity: number.anern_float_voltage
-            name: Float charge voltage (27)
+            name: Float voltage (27)
           - entity: number.anern_low_cutoff
-            name: Batt. low cutoff (29) · V mode
+            name: Low cutoff V (29)
           - entity: number.anern_equalization_voltage
-            name: Equalization voltage (31)
+            name: Equaliz. voltage (31)
           - entity: number.anern_equalization_time
-            name: Equalization time (33)
+            name: Equaliz. time (33)
           - entity: number.anern_equalization_timeout
-            name: Equalization timeout (34)
+            name: Equaliz. timeout (34)
           - entity: number.anern_equalization_interval
-            name: Equalization interval (35)
+            name: Equaliz. interval (35)
 
       - type: markdown
         content: >-
-          One setting at a time. Rules: battery charge current from grid ≤ total;
+          One setting at a time. Rules: grid current ≤ total current;
           low cutoff < back to grid < back to battery; float ≤ bulk.
 
-          With a lithium battery talking to the BMS (type LIB or LIL), programs 12, 13 and
-          29 are set in % on the inverter display. The % registers are not known yet, so
-          these three show the voltage-mode values and are read-only in that case.
+          12, 13 and 29 are battery voltages (SBU switching and low cutoff). With a
+          lithium battery talking to the BMS (type LIB/LIL) the inverter uses % of SOC
+          for them instead; that register is unknown, so they are read-only then.
 
       - type: vertical-stack
         cards:
@@ -142,11 +142,11 @@ views:
           - entity: switch.anern_restart_overload
             name: Restart on overload (06)
           - entity: switch.anern_restart_overtemp
-            name: Restart on over temperature (07)
+            name: Restart on overtemp (07)
           - entity: switch.anern_beep_source_loss
             name: Beep on source loss (22)
           - entity: switch.anern_default_screen
-            name: Return to default screen (19)
+            name: Return to main screen (19)
           - entity: switch.anern_overload_bypass
             name: Overload bypass (23)
           - entity: switch.anern_fault_record

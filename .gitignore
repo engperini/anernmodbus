@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+rwb1.env
+*.env

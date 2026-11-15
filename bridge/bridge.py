@@ -62,38 +62,47 @@ async def read_once(address, key, timeout=7):
     device = await BleakScanner.find_device_by_address(address, timeout=8)
     if device is None:
         raise TimeoutError("RWB1 BLE not found in scan")
-    async with BleakClient(device, timeout=20) as client:
-        if client.services.get_service(SERVICE_UUID) is None:
-            raise ValueError("expected RWB1 GATT service absent")
-        await client.start_notify(INDICATE_UUID, on_data)
-        max_payload = max(1, min(227, client.mtu_size - 6))
+    result = None
+    try:
+        async with BleakClient(device, timeout=20) as client:
+            if client.services.get_service(SERVICE_UUID) is None:
+                raise ValueError("expected RWB1 GATT service absent")
+            await client.start_notify(INDICATE_UUID, on_data)
+            max_payload = max(1, min(227, client.mtu_size - 6))
 
-        async def query(request):
-            chunks.clear()
-            messages.clear()
-            received.clear()
-            encrypted = encrypt_request(request, key)
-            fragments = [encrypted[i:i + max_payload] for i in range(0, len(encrypted), max_payload)]
-            for index, payload in enumerate(fragments, 1):
-                await client.write_gatt_char(
-                    WRITE_UUID, bytes((index, len(fragments), len(payload))) + payload, response=True
-                )
-            await asyncio.wait_for(received.wait(), timeout=timeout)
-            return decrypt_response(messages[-1], key)
+            async def query(request):
+                chunks.clear()
+                messages.clear()
+                received.clear()
+                encrypted = encrypt_request(request, key)
+                fragments = [encrypted[i:i + max_payload] for i in range(0, len(encrypted), max_payload)]
+                for index, payload in enumerate(fragments, 1):
+                    await client.write_gatt_char(
+                        WRITE_UUID, bytes((index, len(fragments), len(payload))) + payload, response=True
+                    )
+                await asyncio.wait_for(received.wait(), timeout=timeout)
+                return decrypt_response(messages[-1], key)
 
-        try:
-            words = decode_words(await query(READ_REQUEST))
             try:
-                error = decode_read_block(await query(read_request(4530, 1)), 1)[0]
-                flags = decode_read_block(await query(read_request(4535, 1)), 1)[0]
-                settings = decode_read_block(await query(read_request(4536, 29)), 29)
-                extra = map_settings(settings, flags, error)
-            except Exception as exc:
-                LOG.warning("Optional settings read failed (telemetry retained): %s", exc)
-                extra = {}
-        finally:
-            await client.stop_notify(INDICATE_UUID)
-    return words, extra
+                words = decode_words(await query(READ_REQUEST))
+                try:
+                    error = decode_read_block(await query(read_request(4530, 1)), 1)[0]
+                    flags = decode_read_block(await query(read_request(4535, 1)), 1)[0]
+                    settings = decode_read_block(await query(read_request(4536, 29)), 29)
+                    extra = map_settings(settings, flags, error)
+                except Exception as exc:
+                    LOG.warning("Optional settings read failed (telemetry retained): %s", exc)
+                    extra = {}
+                result = (words, extra)
+            finally:
+                await client.stop_notify(INDICATE_UUID)
+    except Exception as exc:
+        # BlueZ on Debian 13 can drop the D-Bus link during stop_notify/disconnect
+        # after a successful read; keep the data in that case.
+        if result is None:
+            raise
+        LOG.debug("BLE teardown failed after successful read: %r", exc)
+    return result
 
 
 def publish(client, topic, payload, retain=True):

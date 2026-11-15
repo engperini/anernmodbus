@@ -29,7 +29,8 @@ from bleak import BleakClient, BleakScanner
 
 from anern_map import (
     BLOCK_COUNT, BLOCK_START, CONTROLS, Control, WriteRefused, check_write_echo,
-    decode_block, decode_read, read_request, required_locks, soc_mode_block, validate_rules, write_request,
+    SOC_RANGES, decode_block, decode_read, encode_soc, read_request, required_locks, soc_mode,
+    validate_rules, validate_soc_rules, write_request,
 )
 from tools.ble_modbus_read import INDICATE_UUID, SERVICE_UUID, WRITE_UUID, decrypt_response, encrypt_request
 from tools.rwb1_ble_protocol import consume_fragment, derive_key
@@ -318,10 +319,12 @@ class Bridge:
             # Voltages as MQTT text so the box keeps one decimal ("27.0"); a number entity
             # in box mode drops it ("27"). The bridge still validates range and step.
             self.publish(f"homeassistant/number/rwb1_ble_{self.device_id}/{c.key}/config", "")
-            self._entity("text", c.key, f"{c.name} [V]", state_topic=state,
-                         value_template="{{ '%%.1f' | format(value_json.%s | float(0)) }}" % c.key,
-                         command_topic=command, mode="text", min=2, max=5,
-                         pattern=r"^\d{1,2}([.,]\d)?$", icon=c.icon or "mdi:tune-vertical")
+            soc = c.key in SOC_RANGES
+            self._entity("text", c.key, f"{c.name} [{'V or %' if soc else 'V'}]", state_topic=state,
+                         value_template="{{ value_json.%s_display }}" % c.key,
+                         command_topic=command, mode="text", min=1, max=5,
+                         pattern=r"^\d{1,3}([.,]\d)?%?$" if soc else r"^\d{1,2}([.,]\d)?$",
+                         icon=c.icon or "mdi:tune-vertical")
         elif c.kind == "number":
             self._entity("number", c.key, c.name, state_topic=state, value_template=template,
                          command_topic=command, min=c.minimum, max=c.maximum, step=c.step,
@@ -352,18 +355,18 @@ class Bridge:
             return
         words = await session.read_block()
         self._publish_values(words)
-        old = self.values.get(key)
-        blocked = soc_mode_block(self.values, key)
-        if blocked:
-            self.result(f"{control.name}: {blocked} (not sent)")
-            self.publish_state()
-            return
+        old = self.values.get(key + "_display", self.values.get(key))
         if control.kind == "number":
             value = value.replace(",", ".")
         try:
-            raw = control.encode(value)
-            if control.group == "B":
-                validate_rules(self.values, key, value)
+            if key in SOC_RANGES and soc_mode(self.values):
+                raw = encode_soc(key, value)
+                validate_soc_rules({k: self.values[k + "_raw"] for k in SOC_RANGES}, key, raw)
+                value = f"{raw}%"
+            else:
+                raw = control.encode(value)
+                if control.group == "B":
+                    validate_rules(self.values, key, value)
         except ValueError as exc:
             self.result(f"{control.name}: {exc} (not sent)")
             self.publish_state()
@@ -376,7 +379,11 @@ class Bridge:
             await asyncio.sleep(1.5)
             self._publish_values(await session.read_block())
             now = self.values.get(key)
-            same = (str(now) == str(value)) or (control.kind == "number" and abs(float(now) - float(value)) < 1e-6)
+            if key in SOC_RANGES and soc_mode(self.values):
+                now = self.values[key + "_display"]
+                same = self.values[key + "_raw"] == raw
+            else:
+                same = (str(now) == str(value)) or (control.kind == "number" and abs(float(now) - float(value)) < 1e-6)
             entry["result"] = "ok" if same else f"echo ok, re-read {now}"
             self.result(f"{control.name}: {old} → {value} · " + ("OK, verified" if same else f"echo OK but re-read {now}"))
         except WriteRefused as exc:

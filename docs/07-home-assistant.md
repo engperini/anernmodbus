@@ -28,19 +28,19 @@ Specification of the final version (11/14/2026, screenshots in `images/06-dashbo
 
 | Name | Write | Range | Step | Rule |
 |---|---|---|---|---|
-| Max current · total (02) | 5022 | 10–100 A | 10 | |
+| Max current · total (02) | 5022 | 10–120 A | 10 | |
 | Max current · grid (11) | 5024 | 2, 10…100 A | | ≤ total (02) |
-| Back to grid V (12) | 5025 | 21.0–25.5 V | 0.5 | |
-| Back to battery V (13) | 5026 | 24.0–29.0 V | 0.5 | > back to grid |
+| Back to grid (12) | 5025 | 21.0–25.5 V | 0.5 | |
+| Back to battery (13) | 5026 | 24.0–29.0 V | 0.5 | > back to grid |
 | Bulk voltage (26) | 5027 | 26.0–28.8 V | 0.1 | |
 | Float voltage (27) | 5028 | 26.0–28.8 V | 0.1 | ≤ bulk |
-| Low cutoff V (29) | 5029 | 24.0–25.0 V | 0.1 | < back to grid |
+| Low cutoff (29) | 5029 | 24.0–25.0 V | 0.1 | < back to grid |
 | Equaliz. voltage (31) | 5030 | 26.0–28.8 V | 0.1 | |
 | Equaliz. time (33) | 5031 | 5–900 min | 5 | |
 | Equaliz. timeout (34) | 5032 | 5–900 min | 5 | |
 | Equaliz. interval (35) | 5033 | 0–90 days | 1 | |
 
-**BMS batteries (type LIB or LIL):** the inverter display shows programs 12, 13 and 29 in % of SOC (e.g. 30% / 60%), while registers 4544/4545/4548 keep the voltage-mode values. The % registers are unknown, so the bridge treats these three as read-only in that case.
+**BMS batteries (type LIB or LIL):** per the manual, programs 12, 13 and 29 are then set in % of SOC (12: 10–50 % step 5, 13: 30–100 % step 5, 29: 5–30 %). The bridge accepts "30" or "30%" in that mode and writes the raw percent to the same register (5025/5026/5029). On 2026-11-15 the display showed 30%/60% while 4544/4545 still read 245/270 (volts); the first echo write in % mode will confirm whether the register switches to the % value.
 
 Help line: "One setting at a time. Rules: grid charge current ≤ total; low cutoff < back to grid < back to battery; float ≤ bulk."
 

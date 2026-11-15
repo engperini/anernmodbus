@@ -77,13 +77,31 @@ class DecodeTests(unittest.TestCase):
 
 
 class SocModeTests(unittest.TestCase):
-    def test_12_13_29_read_only_with_bms_battery(self):
-        from anern_map import soc_mode_block
-        v = decode_block(dump_words())          # battery type LIL
-        for key in ("back_to_grid", "back_to_battery", "low_cutoff"):
-            self.assertIsNotNone(soc_mode_block(v, key))
-        self.assertIsNone(soc_mode_block(v, "bulk_voltage"))
-        self.assertIsNone(soc_mode_block(dict(v, battery_type="AGM"), "back_to_grid"))
+    def test_soc_mode_ranges_from_manual(self):
+        from anern_map import encode_soc
+        self.assertEqual(encode_soc("back_to_grid", "30%"), 30)
+        self.assertEqual(encode_soc("back_to_battery", "60"), 60)
+        self.assertEqual(encode_soc("low_cutoff", "20 %"), 20)
+        for key, bad in [("back_to_grid", "55"), ("back_to_grid", "32"), ("back_to_battery", "25"),
+                         ("low_cutoff", "31"), ("low_cutoff", "4"), ("back_to_grid", "30.5")]:
+            with self.assertRaises(ValueError, msg=f"{key}={bad}"):
+                encode_soc(key, bad)
+
+    def test_display_volts_or_percent(self):
+        from anern_map import setting_display
+        v = decode_block(dump_words())                       # battery type LIL
+        self.assertEqual(v["back_to_grid_display"], "24.5")  # register still holds volts
+        self.assertEqual(setting_display(v, "back_to_grid", 30), "30%")
+        self.assertEqual(setting_display(dict(v, battery_type="AGM"), "back_to_grid", 245), "24.5")
+        self.assertEqual(v["bulk_voltage_display"], "28.4")
+
+    def test_soc_rules(self):
+        from anern_map import validate_soc_rules
+        validate_soc_rules({"back_to_grid": 30, "back_to_battery": 60, "low_cutoff": 20}, "back_to_grid", 35)
+        with self.assertRaises(ValueError):
+            validate_soc_rules({"back_to_grid": 30, "back_to_battery": 60, "low_cutoff": 20}, "back_to_grid", 60)
+        # current values still in volts: % rules are not applied
+        validate_soc_rules({"back_to_grid": 245, "back_to_battery": 270, "low_cutoff": 240}, "back_to_grid", 30)
 
 
 class FrameTests(unittest.TestCase):
@@ -121,7 +139,7 @@ class ValidationTests(unittest.TestCase):
         self.assertEqual(CONTROLS["output_voltage_setting"].encode("230 V"), 230)
         self.assertEqual(CONTROLS["battery_type"].encode("LIL"), 6)
         self.assertEqual(CONTROLS["alarm"].encode("ON"), 1)
-        for key, bad in [("total_charge_current", "75"), ("total_charge_current", "110"),
+        for key, bad in [("total_charge_current", "75"), ("total_charge_current", "130"),
                          ("grid_charge_current", "5"), ("back_to_grid", "24.3"), ("low_cutoff", "26"),
                          ("battery_type", "XYZ"), ("alarm", "1")]:
             with self.assertRaises(ValueError, msg=f"{key}={bad}"):

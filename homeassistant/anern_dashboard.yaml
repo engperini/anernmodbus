@@ -37,15 +37,15 @@ views:
           - entity: number.anern_grid_charge_current
             name: Max current · grid (11)
           - entity: text.anern_back_to_grid
-            name: Back to grid V (12)
+            name: Back to grid (12)
           - entity: text.anern_back_to_battery
-            name: Back to battery V (13)
+            name: Back to battery (13)
           - entity: text.anern_bulk_voltage
             name: Bulk voltage (26)
           - entity: text.anern_float_voltage
             name: Float voltage (27)
           - entity: text.anern_low_cutoff
-            name: Low cutoff V (29)
+            name: Low cutoff (29)
           - entity: text.anern_equalization_voltage
             name: Equaliz. voltage (31)
           - entity: number.anern_equalization_time
@@ -60,9 +60,9 @@ views:
           One setting at a time. Rules: grid current ≤ total current;
           low cutoff < back to grid < back to battery; float ≤ bulk.
 
-          12, 13 and 29 are battery voltages (SBU switching and low cutoff). With a
-          lithium battery talking to the BMS (type LIB/LIL) the inverter uses % of SOC
-          for them instead; that register is unknown, so they are read-only then.
+          12, 13 and 29 are in volts, or in % of SOC when the battery type (05) is
+          LIB/LIL (BMS). Type 30 or 30% for %. Ranges in % (manual): 12 = 10–50 step 5,
+          13 = 30–100 step 5, 29 = 5–30.
 
       - type: vertical-stack
         cards:

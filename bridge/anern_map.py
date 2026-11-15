@@ -204,6 +204,13 @@ def decode_block(words: List[int]) -> Dict[str, Any]:
     for control in CONTROLS.values():
         if control.read_register is not None:
             values[control.key] = control.decode(reg(words, control.read_register))
+    for key in SOC_RANGES:
+        raw = reg(words, CONTROLS[key].read_register)
+        values[key + "_raw"] = raw
+        values[key + "_display"] = setting_display(values, key, raw)
+    for key, control in CONTROLS.items():
+        if control.kind == "number" and control.scale != 1 and key not in SOC_RANGES:
+            values[key + "_display"] = f"{values[key]:.1f}"
     return values
 
 
@@ -278,7 +285,7 @@ _CONTROL_LIST = [
        read_register=4537, write_register=5018, options=("USB", "SUB", "SBU", "MKS"), icon="mdi:transmission-tower"),
     # Group B · parameters
     _c(key="total_charge_current", name="Battery charge current, total max (02)", group="B", program=2,
-       read_register=4541, write_register=5022, minimum=10, maximum=100, step=10, unit="A"),
+       read_register=4541, write_register=5022, minimum=10, maximum=120, step=10, unit="A"),
     _c(key="grid_charge_current", name="Battery charge current from grid, max (11)", group="B", program=11,
        read_register=4543, write_register=5024, minimum=2, maximum=100, step=1, unit="A",
        allowed=(2, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100)),
@@ -349,18 +356,49 @@ def validate_rules(current: Dict[str, Any], key: str, value: Any) -> None:
         raise ValueError("float (27) must be ≤ bulk (26)")
 
 
-# With a communicating lithium BMS the display shows programs 12, 13 and 29 in % of
-# SOC, but 4544/4545/4548 keep the voltage-mode values and the % registers are
-# unknown (docs/10). Writing the volts there would not do what the user expects.
+# With a communicating lithium BMS (battery type LIB/LIL) the manual says programs
+# 12, 13 and 29 are set in % of SOC instead of volts. Hypothesis under test: the
+# same registers hold the % value in that mode (raw = percent). Ranges from the
+# manual (3.6/4.2 kW model): 12 = 10–50 % step 5, 13 = 30–100 % step 5,
+# 29 = 5–30 % (step 1).
 SOC_MODE_BATTERY_TYPES = ("LIB", "LIL")
-SOC_MODE_CONTROLS = ("back_to_grid", "back_to_battery", "low_cutoff")
+SOC_RANGES = {"back_to_grid": (10, 50, 5), "back_to_battery": (30, 100, 5), "low_cutoff": (5, 30, 1)}
+SOC_MODE_CONTROLS = tuple(SOC_RANGES)
 
 
-def soc_mode_block(values: Dict[str, Any], key: str) -> Optional[str]:
-    if key in SOC_MODE_CONTROLS and values.get("battery_type") in SOC_MODE_BATTERY_TYPES:
-        return (f"with battery type {values['battery_type']} the inverter uses % (display) for this "
-                "program; the % register is not known yet, so it is read-only")
-    return None
+def soc_mode(values: Dict[str, Any]) -> bool:
+    return values.get("battery_type") in SOC_MODE_BATTERY_TYPES
+
+
+def setting_display(values: Dict[str, Any], key: str, raw: int) -> str:
+    """Text shown in HA for a Group B voltage control: '24.5' (V) or '30%' (SOC mode)."""
+    if key in SOC_RANGES and soc_mode(values) and raw <= 100:
+        return f"{raw}%"
+    return f"{raw * CONTROLS[key].scale:.1f}"
+
+
+def encode_soc(key: str, value: str) -> int:
+    """'30' or '30%' -> 30, validated against the manual's % range for that program."""
+    low, high, step = SOC_RANGES[key]
+    text = str(value).strip().rstrip("%").strip().replace(",", ".")
+    number = float(text)
+    if number != int(number):
+        raise ValueError(f"{CONTROLS[key].name}: whole % only")
+    number = int(number)
+    if not low <= number <= high or (number - low) % step:
+        raise ValueError(f"{CONTROLS[key].name}: {low}–{high} % in steps of {step} (BMS mode)")
+    return number
+
+
+def validate_soc_rules(raws: Dict[str, int], key: str, raw: int) -> None:
+    """12 % < 13 % and 29 % < 12 %, checked only when the current values look like %."""
+    v = dict(raws)
+    v[key] = raw
+    if all(v[k] <= 100 for k in SOC_RANGES):
+        if not v["low_cutoff"] < v["back_to_grid"]:
+            raise ValueError("low cutoff % (29) must be < back to grid % (12)")
+        if not v["back_to_grid"] < v["back_to_battery"]:
+            raise ValueError("back to grid % (12) must be < back to battery % (13)")
 
 
 def required_locks(control: Control) -> Tuple[str, ...]:

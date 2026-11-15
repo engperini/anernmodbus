@@ -7,7 +7,7 @@ Inversor  ⇄  porta de comunicação  ⇄  dongle Solar Plug RWB1  ⇄  BLE  �
 ```
 
 - O dongle encapsula **Modbus RTU** (com CRC) nas mensagens BLE. A ponte envia o quadro Modbus e recebe a resposta.
-- Os detalhes de GATT (serviço/característica, MTU, fragmentação) ficavam no código da ponte (`bridge.py`). **Recupere-os da cópia da ponte que ainda existe no Pi** (versão de 13/11, que já lia com CRC válido) antes de reescrever.
+- GATT: serviço `FEE7`, escrita `FED5`, indicação `FED6`; quadros cifrados e fragmentados com cabeçalho de 3 bytes (`bridge/tools/rwb1_ble_protocol.py`, `bridge/tools/ble_modbus_read.py`). As palavras vêm em little-endian. Uma leitura FC03 de 4501 com 64 registradores funciona (testado em 15/11).
 - O dongle tem um modo "near" (BLE local) no app: o servidor da Siseli gera o comando e o celular envia por BLE. Rotas vistas no app: `/near/dtu/gatherProtocol`, `/near/dtu/device/attribute/groups`, `/near/dtu/gen/device/config/write` (exigem token da conta). Não são necessárias para a ponte local.
 
 ## Modbus

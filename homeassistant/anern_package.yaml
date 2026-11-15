@@ -1,0 +1,113 @@
+# Home Assistant package: inversor Anern AN-SCI-ECO-4200 (ponte RWB1 BLE -> MQTT)
+#
+# Instalação: em configuration.yaml
+#   homeassistant:
+#     packages: !include_dir_named packages
+# e um link ou cópia deste arquivo em <config>/packages/anern.yaml.
+#
+# O tópico abaixo usa o ID que a ponte imprime/publica (solar/rwb1_ble/<id>/...):
+# troque 74102474b36b pelo seu se usar outro dongle.
+
+input_boolean:
+  anern_modo_edicao:
+    name: "Modo edição do inversor (10 min)"
+    icon: mdi:lock-open-variant
+  anern_ajustes_criticos:
+    name: "Ajustes críticos"
+    icon: mdi:shield-lock
+
+template:
+  - binary_sensor:
+      - name: "Inversor · dados recentes (<5 min)"
+        unique_id: anern_dados_recentes
+        device_class: connectivity
+        state: >
+          {% set t = states('sensor.anern_last_read') | as_datetime %}
+          {{ t is not none and (now() - t).total_seconds() < 300 }}
+
+automation:
+  - id: anern_travas_para_ponte
+    alias: "Inversor · enviar travas para a ponte"
+    description: "A ponte só escreve com as travas ligadas; publica o estado delas no MQTT."
+    mode: queued
+    triggers:
+      - trigger: state
+        entity_id: [input_boolean.anern_modo_edicao, input_boolean.anern_ajustes_criticos]
+      - trigger: homeassistant
+        event: start
+      - trigger: mqtt
+        topic: homeassistant/status
+        payload: online
+    actions:
+      - action: mqtt.publish
+        data:
+          topic: solar/rwb1_ble/74102474b36b/locks
+          retain: true
+          payload: >
+            {"edit": {{ is_state('input_boolean.anern_modo_edicao', 'on') | tojson }},
+             "critical": {{ (is_state('input_boolean.anern_modo_edicao', 'on')
+                             and is_state('input_boolean.anern_ajustes_criticos', 'on')) | tojson }}}
+
+  - id: anern_travas_desligam_10min
+    alias: "Inversor · travas desligam em 10 min"
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id: input_boolean.anern_modo_edicao
+        to: "on"
+        for: "00:10:00"
+      - trigger: state
+        entity_id: input_boolean.anern_ajustes_criticos
+        to: "on"
+        for: "00:10:00"
+      - trigger: homeassistant
+        event: start
+    actions:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: [input_boolean.anern_modo_edicao, input_boolean.anern_ajustes_criticos]
+
+  - id: anern_alerta_falha
+    alias: "Inversor · alerta de falha"
+    mode: queued
+    triggers:
+      - trigger: state
+        entity_id: sensor.anern_fault_code
+    conditions:
+      - condition: template
+        value_template: "{{ trigger.to_state.state not in ['0', 'unknown', 'unavailable'] }}"
+    actions:
+      - action: persistent_notification.create
+        data:
+          notification_id: anern_falha
+          title: >
+            {{ 'CRÍTICO — ' if trigger.to_state.state == '61' else '' }}Falha no inversor
+          message: >
+            {% if trigger.to_state.state == '61' %}Comunicação com o BMS perdida — o inversor pode cortar a saída.
+            {% else %}{{ states('sensor.anern_fault_text') }}{% endif %}
+
+  - id: anern_alerta_aviso
+    alias: "Inversor · aviso por mais de 2 min"
+    triggers:
+      - trigger: template
+        value_template: "{{ states('sensor.anern_warning_code') not in ['0', 'unknown', 'unavailable'] }}"
+        for: "00:02:00"
+    actions:
+      - action: persistent_notification.create
+        data:
+          notification_id: anern_aviso
+          title: "Aviso no inversor"
+          message: "{{ states('sensor.anern_warning_text') }}"
+
+  - id: anern_alerta_sem_dados
+    alias: "Inversor · ponte sem dados"
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.inversor_dados_recentes_5_min
+        to: "off"
+    actions:
+      - action: persistent_notification.create
+        data:
+          notification_id: anern_sem_dados
+          title: "Inversor sem dados"
+          message: "A ponte BLE não lê o inversor há mais de 5 minutos."

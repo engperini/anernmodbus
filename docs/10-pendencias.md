@@ -3,7 +3,7 @@
 | Item | Situação | Como resolver |
 |---|---|---|
 | 4501 códigos 0, 1, 2, 5, 6 | não observados | anotar o valor quando o inversor estiver em espera, ligando, em falha etc. |
-| 4553 flags de status | provável | conferir com a casa na bateria: "na bateria" deve ligar, "rede ativa" desligar |
+| 4553 flags de status | **duvidoso** | em 15/11 08:42: 4501 = 3 (Bateria), 4553 = 0x7614 após a troca, e o bit 0x0100 ("na bateria") **desligado**. Revisar o mapa dos bits comparando vários estados |
 | 4554 | prog 38 ou estado da bateria | à noite, sem carga: se continuar 2 é o prog 38 |
 | 4555 / 4556 | desconhecidos (10 → 11) | observar ao longo de dias; comparar com campos do app |
 | Prog 37 e 41 (valor 0) | registrador não identificado | mudar um deles sem efeito e ver qual registrador muda (ex.: 41 com 37 desligado) |

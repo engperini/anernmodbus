@@ -1,194 +1,416 @@
-"""Read-only RWB1 BLE -> local MQTT Discovery bridge for Home Assistant Core.
+"""RWB1 BLE <-> MQTT bridge for the Anern AN-SCI-ECO-4200 (Home Assistant discovery).
 
-Only allow-listed function-03 reads (4501/21, 4530/1, 4535/1,
-4536/29) are sent. No inverter parameter writes or controls exist.
+- Reads the whole block 4501-4564 (FC03) every --interval seconds.
+- Publishes telemetry, decoded texts/flags and the current value of every setting.
+- Exposes the settings as MQTT select/number/switch/button entities.
+- Writes only on an explicit user command, one at a time, with the safe flow of
+  docs/02: fresh read -> validate (range + rules) -> one FC06 -> identical echo ->
+  re-read and compare -> publish result. A refusal is never retried.
+- Writes are accepted only while the Home Assistant locks are on (topic <base>/locks,
+  published by the HA package): "edit" for groups A, B and D; "edit" + "critical"
+  for group C, whose select only prepares the value and a button applies it.
 """
+from __future__ import annotations
+
 import argparse
 import asyncio
+import datetime as dt
 import hashlib
 import json
 import logging
 import os
+import subprocess
 import time
+from pathlib import Path
+from typing import Any, Dict, Optional
 
-from bleak import BleakClient, BleakScanner
 import paho.mqtt.client as mqtt
+from bleak import BleakClient, BleakScanner
 
-from tools.ble_modbus_read import (
-    INDICATE_UUID, READ_REQUEST, SERVICE_UUID, WRITE_UUID,
-    decrypt_response, encrypt_request,
+from anern_map import (
+    BLOCK_COUNT, BLOCK_START, CONTROLS, Control, WriteRefused, check_write_echo,
+    decode_block, decode_read, read_request, required_locks, validate_rules, write_request,
 )
-from tools.rwb1_ble_protocol import consume_fragment, crc16_modbus, derive_key
-from settings_map import SETTINGS_FIELDS, decode_read_block, map_settings, read_request
+from tools.ble_modbus_read import INDICATE_UUID, SERVICE_UUID, WRITE_UUID, decrypt_response, encrypt_request
+from tools.rwb1_ble_protocol import consume_fragment, derive_key
 
 LOG = logging.getLogger("rwb1_bridge")
-# key, Portuguese label, unit, device class, state class, multiplier, precision
-FIELDS = [
-    ("status", "Código de estado", None, None, None, 1, 0),
-    ("grid_voltage", "Tensão da rede", "V", "voltage", "measurement", 0.1, 1),
-    ("grid_frequency", "Frequência da rede", "Hz", "frequency", "measurement", 0.1, 1),
-    ("pv_voltage", "Tensão solar", "V", "voltage", "measurement", 0.1, 1),
-    ("pv_power", "Potência solar", "W", "power", "measurement", 1, 0),
-    ("battery_voltage", "Tensão da bateria", "V", "voltage", "measurement", 0.1, 1),
-    ("battery_soc", "Carga da bateria", "%", "battery", "measurement", 1, 0),
-    ("battery_charge_current", "Corrente de carga da bateria", "A", "current", "measurement", 1, 0),
-    ("battery_discharge_current", "Corrente de descarga da bateria", "A", "current", "measurement", 1, 0),
-    ("output_voltage", "Tensão de saída", "V", "voltage", "measurement", 0.1, 1),
-    ("output_frequency", "Frequência de saída", "Hz", "frequency", "measurement", 0.1, 1),
-    ("load_apparent_power", "Potência aparente da carga", "VA", "apparent_power", "measurement", 1, 0),
-    ("load_active_power", "Potência ativa da carga", "W", "power", "measurement", 1, 0),
-    ("load_percent", "Carga do inversor", "%", None, "measurement", 1, 0),
-    ("rated_power", "Potência nominal", "W", "power", "measurement", 1, 0),
+HERE = Path(__file__).resolve().parent
+WRITE_LOG = Path(os.environ.get("RWB1_WRITE_LOG", HERE / "writes.log"))
+PENDING_TTL = 120          # s: a prepared group C value expires
+BT_RESET_AFTER = 5         # consecutive failures before resetting the adapter
+
+DEVICE = {
+    "name": "Inversor solar Anern",
+    "manufacturer": "Anern",
+    "model": "AN-SCI-ECO-4200 / Solar Plug RWB1",
+}
+
+# key, name, unit, device_class, state_class, precision, icon, diagnostic
+SENSORS = [
+    ("operation_mode", "Modo de operação", None, None, None, None, "mdi:state-machine", False),
+    ("status", "Código do modo (4501)", None, None, None, 0, None, True),
+    ("pv_voltage", "Tensão FV", "V", "voltage", "measurement", 1, None, False),
+    ("pv_power", "Potência FV", "W", "power", "measurement", 0, None, False),
+    ("battery_voltage", "Tensão da bateria", "V", "voltage", "measurement", 1, None, False),
+    ("battery_soc", "SOC da bateria (BMS)", "%", "battery", "measurement", 0, None, False),
+    ("battery_charge_current", "Corrente de carga", "A", "current", "measurement", 0, None, False),
+    ("battery_discharge_current", "Corrente de descarga", "A", "current", "measurement", 0, None, False),
+    ("grid_voltage", "Tensão da rede", "V", "voltage", "measurement", 1, None, False),
+    ("grid_frequency", "Frequência da rede", "Hz", "frequency", "measurement", 1, None, False),
+    ("output_voltage", "Tensão de saída", "V", "voltage", "measurement", 1, None, False),
+    ("output_frequency", "Frequência de saída", "Hz", "frequency", "measurement", 1, None, False),
+    ("load_active_power", "Potência ativa", "W", "power", "measurement", 0, None, False),
+    ("load_apparent_power", "Potência aparente", "VA", "apparent_power", "measurement", 0, None, False),
+    ("load_percent", "Uso da capacidade", "%", None, "measurement", 0, "mdi:gauge", False),
+    ("ntc_temperature", "Temperatura NTC", "°C", "temperature", "measurement", 0, None, False),
+    ("led_text", "LED (39) · leitura", None, None, None, None, "mdi:led-on", False),
+    ("led_state", "LED (4561)", None, None, None, 0, None, True),
+    ("fault_text", "Falha", None, None, None, None, "mdi:alert-octagon", False),
+    ("fault_code", "Código de falha (4530)", None, None, None, 0, None, True),
+    ("warning_text", "Aviso", None, None, None, None, "mdi:alert", False),
+    ("warning_code", "Código de aviso (4529)", None, None, None, 0, None, True),
+    ("dual_cutoff_voltage", "Corte da saída dupla (42) · V", "V", "voltage", None, 1, None, False),
+    ("dual_cutoff_percent", "Corte da saída dupla (42) · %", "%", None, None, 0, "mdi:percent", False),
+    ("cpu_version", "Versão da CPU", None, None, None, None, "mdi:chip", False),
+    ("rated_power", "Potência nominal", "W", "power", None, 0, None, False),
+    ("rated_apparent_power", "Potência nominal (VA)", "VA", "apparent_power", None, 0, None, False),
+    ("rated_ac_voltage", "Tensão CA nominal", "V", "voltage", None, 0, None, False),
+    ("rated_ac_current", "Corrente CA nominal", "A", "current", None, 0, None, False),
+    ("rated_battery_voltage", "Tensão nominal da bateria", "V", "voltage", None, 1, None, False),
+    ("rated_output_voltage", "Tensão de saída nominal", "V", "voltage", None, 0, None, False),
+    ("rated_frequency", "Frequência nominal", "Hz", "frequency", None, 1, None, False),
+    ("rated_output_current", "Corrente de saída nominal", "A", "current", None, 0, None, False),
+    ("config_flags", "Flags de configuração (4535)", None, None, None, 0, None, True),
+    ("status_flags", "Flags de status (4553)", None, None, None, 0, None, True),
 ]
-def decode_words(frame):
-    if len(frame) != 47 or frame[:3] != b"\x05\x03\x2a":
-        raise ValueError("unexpected Modbus response size/function")
-    if crc16_modbus(frame[:-2]) != int.from_bytes(frame[-2:], "little"):
-        raise ValueError("invalid Modbus CRC")
-    return [int.from_bytes(frame[3 + 2*i:5 + 2*i], "little") for i in range(21)]
+
+BINARY_SENSORS = [
+    ("charge_enabled", "Carga habilitada", None, "mdi:battery-plus"),
+    ("grid_active", "Rede ativa", "power", None),
+    ("on_battery", "Na bateria", None, "mdi:home-battery"),
+    ("equalization", "Equalização (30) · leitura", None, "mdi:scale-balance"),
+    ("equalization_now", "Equalização imediata (36) · leitura", None, "mdi:scale-balance"),
+]
+
+# Discovery keys of the 13/11 bridge that are now controls or renamed: removed from HA.
+OBSOLETE_SENSORS = [
+    "charger_priority_code", "output_priority_code", "input_range_code", "battery_type_code",
+    "frequency_mode_code", "max_charge_current", "max_grid_charge_current", "low_battery_warning",
+    "low_battery_shutdown", "bulk_charge_voltage", "float_charge_voltage", "back_to_grid_voltage",
+    "back_to_battery_voltage", "error_code", "config_flags_raw", "config_bits_set",
+]
 
 
-async def read_once(address, key, timeout=7):
-    chunks = {}
-    messages = []
-    received = asyncio.Event()
+class RWB1Session:
+    """One BLE connection to the dongle; Modbus frames in, Modbus frames out."""
 
-    def on_data(_char, data):
-        message = consume_fragment(bytes(data), chunks)
+    def __init__(self, address: str, key: bytes, timeout: float = 10):
+        self.address, self.key, self.timeout = address, key, timeout
+        self.client: Optional[BleakClient] = None
+        self._chunks: Dict[int, bytes] = {}
+        self._messages: list = []
+        self._received = asyncio.Event()
+
+    def _on_data(self, _char, data) -> None:
+        message = consume_fragment(bytes(data), self._chunks)
         if message is not None:
-            messages.append(message)
-            received.set()
+            self._messages.append(message)
+            self._received.set()
 
-    device = await BleakScanner.find_device_by_address(address, timeout=8)
-    if device is None:
-        raise TimeoutError("RWB1 BLE not found in scan")
-    result = None
-    try:
-        async with BleakClient(device, timeout=20) as client:
-            if client.services.get_service(SERVICE_UUID) is None:
-                raise ValueError("expected RWB1 GATT service absent")
-            await client.start_notify(INDICATE_UUID, on_data)
-            max_payload = max(1, min(227, client.mtu_size - 6))
+    async def __aenter__(self):
+        device = await BleakScanner.find_device_by_address(self.address, timeout=10)
+        if device is None:
+            raise TimeoutError("RWB1 BLE não encontrado no scan")
+        self.client = BleakClient(device, timeout=20)
+        await self.client.connect()
+        if self.client.services.get_service(SERVICE_UUID) is None:
+            raise ValueError("serviço GATT do RWB1 ausente")
+        await self.client.start_notify(INDICATE_UUID, self._on_data)
+        return self
 
-            async def query(request):
-                chunks.clear()
-                messages.clear()
-                received.clear()
-                encrypted = encrypt_request(request, key)
-                fragments = [encrypted[i:i + max_payload] for i in range(0, len(encrypted), max_payload)]
-                for index, payload in enumerate(fragments, 1):
-                    await client.write_gatt_char(
-                        WRITE_UUID, bytes((index, len(fragments), len(payload))) + payload, response=True
-                    )
-                await asyncio.wait_for(received.wait(), timeout=timeout)
-                return decrypt_response(messages[-1], key)
-
+    async def __aexit__(self, *_exc):
+        # BlueZ on Debian 13 may drop the D-Bus link during teardown: never fatal.
+        for step in (lambda: self.client.stop_notify(INDICATE_UUID), lambda: self.client.disconnect()):
             try:
-                words = decode_words(await query(READ_REQUEST))
-                try:
-                    error = decode_read_block(await query(read_request(4530, 1)), 1)[0]
-                    flags = decode_read_block(await query(read_request(4535, 1)), 1)[0]
-                    settings = decode_read_block(await query(read_request(4536, 29)), 29)
-                    extra = map_settings(settings, flags, error)
-                except Exception as exc:
-                    LOG.warning("Optional settings read failed (telemetry retained): %s", exc)
-                    extra = {}
-                result = (words, extra)
-            finally:
-                await client.stop_notify(INDICATE_UUID)
-    except Exception as exc:
-        # BlueZ on Debian 13 can drop the D-Bus link during stop_notify/disconnect
-        # after a successful read; keep the data in that case.
-        if result is None:
-            raise
-        LOG.debug("BLE teardown failed after successful read: %r", exc)
-    return result
+                await step()
+            except Exception as exc:  # noqa: BLE001
+                LOG.debug("BLE teardown: %r", exc)
+        return False
+
+    async def query(self, request: bytes) -> bytes:
+        self._chunks.clear()
+        self._messages.clear()
+        self._received.clear()
+        encrypted = encrypt_request(request, self.key)
+        size = max(1, min(227, self.client.mtu_size - 6))
+        parts = [encrypted[i:i + size] for i in range(0, len(encrypted), size)]
+        for index, payload in enumerate(parts, 1):
+            await self.client.write_gatt_char(WRITE_UUID, bytes((index, len(parts), len(payload))) + payload, response=True)
+        await asyncio.wait_for(self._received.wait(), timeout=self.timeout)
+        return decrypt_response(self._messages[-1], self.key)
+
+    async def read_block(self):
+        return decode_read(await self.query(read_request()), BLOCK_COUNT)
 
 
-def publish(client, topic, payload, retain=True):
-    info = client.publish(topic, payload, qos=1, retain=retain)
-    info.wait_for_publish(timeout=5)
-    if not info.is_published():
-        raise TimeoutError("MQTT publish timed out")
+class Bridge:
+    def __init__(self, args):
+        self.args = args
+        self.dtu_id = os.environ["RWB1_DTU_ID"]
+        self.address = os.environ["RWB1_BLE_ADDRESS"]
+        self.key = derive_key(self.dtu_id)
+        self.device_id = hashlib.sha256(self.dtu_id.encode()).hexdigest()[:12]
+        self.base = f"solar/rwb1_ble/{self.device_id}"
+        self.device = dict(DEVICE, identifiers=["rwb1_ble_" + self.device_id])
+        self.loop: Optional[asyncio.AbstractEventLoop] = None
+        self.wake = asyncio.Event()
+        self.commands: asyncio.Queue = asyncio.Queue()
+        self.locks = {"edit": False, "critical": False}
+        self.pending: Dict[str, tuple] = {}         # group C key -> (value, expires_at)
+        self.values: Dict[str, Any] = {}
+        self.failures = 0
+        self.mqtt = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="rwb1-ble-" + self.device_id)
+        self.mqtt.will_set(self.base + "/availability", "offline", qos=1, retain=True)
+        self.mqtt.on_connect = self._on_connect
+        self.mqtt.on_message = self._on_message
 
+    # ------------------------------------------------------------ MQTT
+    def publish(self, topic: str, payload: Any, retain: bool = True) -> None:
+        if not isinstance(payload, (str, bytes)):
+            payload = json.dumps(payload, ensure_ascii=False)
+        self.mqtt.publish(topic, payload, qos=1, retain=retain)
 
-def publish_discovery(client, base, device_id):
-    device = {
-        "identifiers": ["rwb1_ble_" + device_id],
-        "name": "Inversor solar Anern",
-        "manufacturer": "Anern",
-        "model": "AN-SCI-ECO-4200 / Solar Plug RWB1",
-    }
-    for fields, diagnostic in ((FIELDS, False), (SETTINGS_FIELDS, True)):
-      for key, name, unit, dclass, sclass, _factor, _precision in fields:
+    def _on_connect(self, client, _userdata, _flags, _rc, _props=None):
+        client.subscribe([(self.base + "/set/+", 1), (self.base + "/apply/+", 1),
+                          (self.base + "/locks", 1), ("homeassistant/status", 1)])
+        self.publish_discovery()
+
+    def _on_message(self, _client, _userdata, msg):
+        payload = msg.payload.decode("utf-8", "replace").strip()
+        if self.loop is not None:
+            self.loop.call_soon_threadsafe(self.handle_message, msg.topic, payload)
+
+    def handle_message(self, topic: str, payload: str) -> None:
+        if topic == "homeassistant/status":
+            if payload == "online":
+                LOG.info("HA online: reenviando discovery e estado")
+                self.publish_discovery()
+                self.publish_state()
+            return
+        if topic == self.base + "/locks":
+            try:
+                data = json.loads(payload)
+                self.locks = {"edit": bool(data.get("edit")), "critical": bool(data.get("critical"))}
+            except ValueError:
+                self.locks = {"edit": False, "critical": False}
+            LOG.info("travas: %s", self.locks)
+            return
+        action, key = topic.rsplit("/", 2)[-2:]
+        control = CONTROLS.get(key)
+        if control is None:
+            return
+        if action == "set" and control.group == "C":
+            self.pending[key] = (payload, time.monotonic() + PENDING_TTL)
+            self.result(f"{control.name}: {payload} preparado — toque em Aplicar (expira em 2 min)")
+            self.publish_state()
+        elif action == "set":
+            self.commands.put_nowait((key, payload))
+            self.wake.set()
+        elif action == "apply":
+            pending = self.pending.pop(key, None)
+            if pending is None or pending[1] < time.monotonic():
+                self.result(f"{control.name}: nada preparado para aplicar")
+                self.publish_state()
+                return
+            self.commands.put_nowait((key, pending[0]))
+            self.wake.set()
+
+    def result(self, text: str) -> None:
+        stamp = dt.datetime.now().strftime("%d/%m %H:%M")
+        LOG.info("resultado: %s", text)
+        self.publish(self.base + "/result", f"{stamp} · {text}"[:250])
+
+    def publish_state(self) -> None:
+        if not self.values:
+            return
+        now = time.monotonic()
+        state = dict(self.values)
+        for key, (value, expires) in list(self.pending.items()):
+            if expires < now:
+                del self.pending[key]
+            else:
+                state[key] = value
+        self.publish(self.base + "/state", state)
+
+    def _entity(self, component: str, key: str, name: str, **extra) -> None:
         config = {
             "name": name,
-            "unique_id": f"rwb1_ble_{device_id}_{key}",
-            "state_topic": f"{base}/state",
-            "value_template": "{{ value_json." + key + " }}",
-            "availability_topic": f"{base}/availability",
-            "device": device,
+            "unique_id": f"rwb1_ble_{self.device_id}_{key}",
+            "default_entity_id": f"{component}.anern_{key}",
+            "availability_topic": self.base + "/availability",
+            "device": self.device,
         }
-        if diagnostic:
-            config["entity_category"] = "diagnostic"
-        if unit is not None:
-            config["unit_of_measurement"] = unit
-        if dclass is not None:
-            config["device_class"] = dclass
-        if sclass is not None:
-            config["state_class"] = sclass
-        publish(client, f"homeassistant/sensor/rwb1_ble_{device_id}/{key}/config", json.dumps(config))
+        config.update({k: v for k, v in extra.items() if v is not None})
+        self.publish(f"homeassistant/{component}/rwb1_ble_{self.device_id}/{key}/config", config)
 
+    def publish_discovery(self) -> None:
+        state = self.base + "/state"
+        for key in OBSOLETE_SENSORS:
+            self.publish(f"homeassistant/sensor/rwb1_ble_{self.device_id}/{key}/config", "")
+        for key, name, unit, dclass, sclass, precision, icon, diagnostic in SENSORS:
+            self._entity("sensor", key, name, state_topic=state,
+                         value_template="{{ value_json.%s }}" % key,
+                         unit_of_measurement=unit, device_class=dclass, state_class=sclass,
+                         suggested_display_precision=precision, icon=icon,
+                         entity_category="diagnostic" if diagnostic else None)
+        self._entity("sensor", "last_read", "Última leitura", state_topic=state,
+                     value_template="{{ value_json.last_read }}", device_class="timestamp",
+                     entity_category="diagnostic")
+        self._entity("sensor", "last_result", "Último resultado de ajuste",
+                     state_topic=self.base + "/result", icon="mdi:clipboard-text-clock")
+        for key, name, dclass, icon in BINARY_SENSORS:
+            self._entity("binary_sensor", key, name, state_topic=state,
+                         value_template="{{ value_json.%s }}" % key,
+                         payload_on="ON", payload_off="OFF", device_class=dclass, icon=icon)
+        for control in CONTROLS.values():
+            self._control_discovery(control, state)
 
-def map_words(words):
-    values = {key: round(words[i] * factor, precision)
-              for i, (key, _name, _unit, _dc, _sc, factor, precision) in enumerate(FIELDS[:14])}
-    values["rated_power"] = words[20]
-    return values
+    def _control_discovery(self, c: Control, state: str) -> None:
+        command = f"{self.base}/set/{c.key}"
+        template = "{{ value_json.%s }}" % c.key
+        if c.kind == "select":
+            self._entity("select", c.key, c.name, state_topic=state, value_template=template,
+                         command_topic=command, options=list(c.options), icon=c.icon or "mdi:format-list-bulleted")
+        elif c.kind == "number":
+            self._entity("number", c.key, c.name, state_topic=state, value_template=template,
+                         command_topic=command, min=c.minimum, max=c.maximum, step=c.step,
+                         unit_of_measurement=c.unit, mode="box", icon=c.icon or "mdi:tune-vertical")
+        else:
+            self._entity("switch", c.key, c.name, state_topic=state, value_template=template,
+                         command_topic=command, payload_on="ON", payload_off="OFF",
+                         state_on="ON", state_off="OFF", icon="mdi:toggle-switch-outline")
+        if c.group == "C":
+            self._entity("button", c.key + "_apply", f"Aplicar {c.name}",
+                         command_topic=f"{self.base}/apply/{c.key}", payload_press="PRESS",
+                         icon="mdi:check-bold")
 
+    # ------------------------------------------------------------ cycle
+    def _publish_values(self, words) -> None:
+        self.values = decode_block(words)
+        self.values["last_read"] = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
+        self.publish_state()
+        self.publish(self.base + "/availability", "online")
 
-async def run(args):
-    dtu_id = os.environ.get("RWB1_DTU_ID")
-    address = os.environ.get("RWB1_BLE_ADDRESS")
-    if not dtu_id or not address:
-        raise ValueError("RWB1_DTU_ID and RWB1_BLE_ADDRESS must be set")
-    key = derive_key(dtu_id)
-    device_id = hashlib.sha256(dtu_id.encode()).hexdigest()[:12]
-    base = f"solar/rwb1_ble/{device_id}"
-    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="rwb1-ble-" + device_id)
-    client.will_set(base + "/availability", "offline", qos=1, retain=True)
-    client.connect("127.0.0.1", 1883, keepalive=60)
-    client.loop_start()
-    try:
-        publish_discovery(client, base, device_id)
-        while True:
-            started = time.monotonic()
+    async def _execute(self, session: RWB1Session, key: str, value: str) -> None:
+        control = CONTROLS[key]
+        missing = [lock for lock in required_locks(control) if not self.locks.get(lock)]
+        if missing:
+            names = {"edit": "Modo edição", "critical": "Ajustes críticos"}
+            self.result(f"{control.name}: bloqueado — ligue {' e '.join(names[m] for m in missing)}")
+            self.publish_state()            # snap the UI back to the read value
+            return
+        words = await session.read_block()
+        self._publish_values(words)
+        old = self.values.get(key)
+        try:
+            raw = control.encode(value)
+            if control.group == "B":
+                validate_rules(self.values, key, value)
+        except ValueError as exc:
+            self.result(f"{control.name}: {exc} (não enviado)")
+            self.publish_state()
+            return
+        request = write_request(control.write_register, raw)
+        entry = {"time": dt.datetime.now().isoformat(timespec="seconds"), "key": key,
+                 "register": control.write_register, "old": old, "new": value, "raw": raw}
+        try:
+            check_write_echo(request, await session.query(request))
+            await asyncio.sleep(1.5)
+            self._publish_values(await session.read_block())
+            now = self.values.get(key)
+            same = (str(now) == str(value)) or (control.kind == "number" and abs(float(now) - float(value)) < 1e-6)
+            entry["result"] = "ok" if same else f"eco ok, releitura {now}"
+            self.result(f"{control.name}: {old} → {value} · " + ("OK, conferido" if same else f"eco OK mas releu {now}"))
+        except WriteRefused as exc:
+            entry["result"] = f"recusado: {exc}"
+            self.result(f"{control.name}: {exc} — não será repetido")
+        except Exception as exc:  # noqa: BLE001
+            entry["result"] = f"erro: {exc!r}"
+            self.result(f"{control.name}: erro ({exc.__class__.__name__}) — não será repetido; confira o display")
+        with WRITE_LOG.open("a", encoding="utf-8") as log:
+            log.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+    async def cycle(self) -> None:
+        async with RWB1Session(self.address, self.key) as session:
+            self._publish_values(await session.read_block())
+            while not self.commands.empty():
+                key, value = self.commands.get_nowait()
+                await self._execute(session, key, value)
+        self.failures = 0
+        v = self.values
+        LOG.info("leitura OK: modo=%s FV=%s W bateria=%s V %s%%", v["operation_mode"], v["pv_power"],
+                 v["battery_voltage"], v["battery_soc"])
+
+    def reset_bluetooth(self) -> None:
+        LOG.warning("%d falhas seguidas: reiniciando o adaptador Bluetooth", self.failures)
+        for cmd in (["bluetoothctl", "disconnect", self.address], ["bluetoothctl", "power", "off"],
+                    ["bluetoothctl", "power", "on"]):
             try:
-                words, settings_values = await read_once(address, key)
-                values = map_words(words)
-                values.update(settings_values)
-                publish(client, base + "/state", json.dumps(values))
-                publish(client, base + "/availability", "online")
-                LOG.info("CRC valid; PV=%s W, battery=%s V, rated=%s W",
-                         values["pv_power"], values["battery_voltage"], values["rated_power"])
-            except Exception as exc:
-                LOG.warning("BLE read failed: %s", exc)
-                publish(client, base + "/availability", "offline")
-                if args.once:
-                    raise
-            if args.once:
-                return
-            await asyncio.sleep(max(0, args.interval - (time.monotonic() - started)))
-    finally:
-        publish(client, base + "/availability", "offline")
-        client.disconnect()
-        client.loop_stop()
+                subprocess.run(cmd, capture_output=True, timeout=15)
+            except Exception as exc:  # noqa: BLE001
+                LOG.warning("bluetoothctl falhou: %r", exc)
+            time.sleep(2)
+
+    async def run(self) -> None:
+        self.loop = asyncio.get_running_loop()
+        self.mqtt.connect(self.args.mqtt_host, self.args.mqtt_port, keepalive=60)
+        self.mqtt.loop_start()
+        try:
+            while True:
+                started = time.monotonic()
+                self.wake.clear()
+                try:
+                    await self.cycle()
+                except Exception as exc:  # noqa: BLE001
+                    self.failures += 1
+                    LOG.warning("leitura BLE falhou (%d): %r", self.failures, exc)
+                    if self.failures >= 3:
+                        self.publish(self.base + "/availability", "offline")
+                    if self.failures % BT_RESET_AFTER == 0:
+                        await asyncio.to_thread(self.reset_bluetooth)
+                    if not self.commands.empty():
+                        while not self.commands.empty():
+                            key, _value = self.commands.get_nowait()
+                            self.result(f"{CONTROLS[key].name}: não enviado (sem conexão BLE) — tente de novo")
+                    if self.args.once:
+                        raise
+                if self.args.once:
+                    return
+                delay = self.args.interval if self.failures == 0 else min(300, self.args.interval * 2 ** min(self.failures, 4))
+                try:
+                    await asyncio.wait_for(self.wake.wait(), timeout=max(0, delay - (time.monotonic() - started)))
+                except asyncio.TimeoutError:
+                    pass
+        finally:
+            self.publish(self.base + "/availability", "offline")
+            self.mqtt.loop_stop()
+            self.mqtt.disconnect()
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--once", action="store_true", help="uma leitura + publicação")
+    parser.add_argument("--interval", type=int, default=30)
+    parser.add_argument("--mqtt-host", default=os.environ.get("MQTT_HOST", "127.0.0.1"))
+    parser.add_argument("--mqtt-port", type=int, default=int(os.environ.get("MQTT_PORT", "1883")))
+    parser.add_argument("--debug", action="store_true")
+    args = parser.parse_args()
+    logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO,
+                        format="%(asctime)s %(levelname)s %(message)s")
+    logging.getLogger("bleak").setLevel(logging.WARNING)
+    asyncio.run(Bridge(args).run())
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--once", action="store_true", help="single BLE read + MQTT publish")
-    parser.add_argument("--interval", type=int, default=30)
-    arguments = parser.parse_args()
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    asyncio.run(run(arguments))
+    main()

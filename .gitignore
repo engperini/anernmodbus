@@ -4,3 +4,4 @@ __pycache__/
 venv/
 rwb1.env
 *.env
+*.log

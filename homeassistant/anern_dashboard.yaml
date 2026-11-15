@@ -14,6 +14,7 @@ views:
 
       - type: entities
         title: Edit locks
+        show_header_toggle: false
         entities:
           - entity: input_boolean.anern_edit_mode
             name: Edit mode (10 min)
@@ -35,17 +36,17 @@ views:
             name: Max current · total (02)
           - entity: number.anern_grid_charge_current
             name: Max current · grid (11)
-          - entity: number.anern_back_to_grid
+          - entity: text.anern_back_to_grid
             name: Back to grid V (12)
-          - entity: number.anern_back_to_battery
+          - entity: text.anern_back_to_battery
             name: Back to battery V (13)
-          - entity: number.anern_bulk_voltage
+          - entity: text.anern_bulk_voltage
             name: Bulk voltage (26)
-          - entity: number.anern_float_voltage
+          - entity: text.anern_float_voltage
             name: Float voltage (27)
-          - entity: number.anern_low_cutoff
+          - entity: text.anern_low_cutoff
             name: Low cutoff V (29)
-          - entity: number.anern_equalization_voltage
+          - entity: text.anern_equalization_voltage
             name: Equaliz. voltage (31)
           - entity: number.anern_equalization_time
             name: Equaliz. time (33)
@@ -70,9 +71,10 @@ views:
               ### Group C · critical settings
               Lithium battery with BMS communication: keep LIL.
 
-              Output now: {{ states(select.anern_output_frequency_setting) }} /
-              {{ states(select.anern_output_voltage_setting) }} · grid read:
-              {{ states(sensor.anern_grid_frequency) }} Hz / {{ states(sensor.anern_grid_voltage) }} V.
+              Output set to: {{ states('select.anern_output_frequency_setting') }} / {{ states('select.anern_output_voltage_setting') }}
+
+              Grid reading: {{ states('sensor.anern_grid_frequency') }} Hz / {{ states('sensor.anern_grid_voltage') }} V
+
               Frequency and voltage must match your grid and appliances.
           - type: entities
             entities:
@@ -81,7 +83,7 @@ views:
               - type: button
                 name: " "
                 icon: mdi:check-bold
-                action_name: Aplicar
+                action_name: Apply
                 tap_action:
                   action: perform-action
                   perform_action: button.press
@@ -95,7 +97,7 @@ views:
               - type: button
                 name: " "
                 icon: mdi:check-bold
-                action_name: Aplicar
+                action_name: Apply
                 tap_action:
                   action: perform-action
                   perform_action: button.press
@@ -109,7 +111,7 @@ views:
               - type: button
                 name: " "
                 icon: mdi:check-bold
-                action_name: Aplicar
+                action_name: Apply
                 tap_action:
                   action: perform-action
                   perform_action: button.press
@@ -123,7 +125,7 @@ views:
               - type: button
                 name: " "
                 icon: mdi:check-bold
-                action_name: Aplicar
+                action_name: Apply
                 tap_action:
                   action: perform-action
                   perform_action: button.press
@@ -134,6 +136,7 @@ views:
 
       - type: entities
         title: Group D · on/off
+        show_header_toggle: false
         entities:
           - entity: switch.anern_alarm
             name: Alarm (18)

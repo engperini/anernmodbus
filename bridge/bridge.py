@@ -314,6 +314,14 @@ class Bridge:
         if c.kind == "select":
             self._entity("select", c.key, c.name, state_topic=state, value_template=template,
                          command_topic=command, options=list(c.options), icon=c.icon or "mdi:format-list-bulleted")
+        elif c.kind == "number" and c.scale != 1:
+            # Voltages as MQTT text so the box keeps one decimal ("27.0"); a number entity
+            # in box mode drops it ("27"). The bridge still validates range and step.
+            self.publish(f"homeassistant/number/rwb1_ble_{self.device_id}/{c.key}/config", "")
+            self._entity("text", c.key, f"{c.name} [V]", state_topic=state,
+                         value_template="{{ '%%.1f' | format(value_json.%s | float(0)) }}" % c.key,
+                         command_topic=command, mode="text", min=2, max=5,
+                         pattern=r"^\d{1,2}([.,]\d)?$", icon=c.icon or "mdi:tune-vertical")
         elif c.kind == "number":
             self._entity("number", c.key, c.name, state_topic=state, value_template=template,
                          command_topic=command, min=c.minimum, max=c.maximum, step=c.step,
@@ -350,6 +358,8 @@ class Bridge:
             self.result(f"{control.name}: {blocked} (not sent)")
             self.publish_state()
             return
+        if control.kind == "number":
+            value = value.replace(",", ".")
         try:
             raw = control.encode(value)
             if control.group == "B":

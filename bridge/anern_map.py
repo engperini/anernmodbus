@@ -107,9 +107,10 @@ WARNINGS = {
 }
 
 
-def code_text(code: int, table: Dict[int, str]) -> str:
+def code_text(code: int, table: Dict[int, str], none: str = "OK") -> str:
+    # Never return "None": Home Assistant would show it as "Unknown".
     if code == 0:
-        return "None"
+        return none
     return f"{code:02d} · {table.get(code, f'Code {code}')}"
 
 
@@ -184,8 +185,8 @@ def decode_block(words: List[int]) -> Dict[str, Any]:
         raw = reg(words, register)
         values[key] = round(raw * scale, precision) if precision else int(round(raw * scale))
     values["operation_mode"] = OPERATION_MODES.get(values["status"], f"Code {values['status']}")
-    values["fault_text"] = code_text(values["fault_code"], FAULTS)
-    values["warning_text"] = code_text(values["warning_code"], WARNINGS)
+    values["fault_text"] = code_text(values["fault_code"], FAULTS, "No fault")
+    values["warning_text"] = code_text(values["warning_code"], WARNINGS, "No warning")
     cpu = reg(words, 4518)
     values["cpu_version"] = f"U1 {cpu // 100:02d} {cpu % 100:02d}"
     values["led_text"] = {0: "LOF (off)", 1: "LON (on)"}.get(values["led_state"], str(values["led_state"]))

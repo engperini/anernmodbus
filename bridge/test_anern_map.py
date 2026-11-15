@@ -49,7 +49,7 @@ class DecodeTests(unittest.TestCase):
     def test_texts(self):
         self.assertEqual(self.v["operation_mode"], "Bypass (grid direct)")
         self.assertEqual(self.v["cpu_version"], "U1 75 11")
-        self.assertEqual(self.v["fault_text"], "None")
+        self.assertEqual(self.v["fault_text"], "No fault")
         self.assertEqual(self.v["led_text"], "LOF (off)")
 
     def test_swapped_config_flags_match_display(self):
@@ -187,7 +187,8 @@ class LockTests(unittest.TestCase):
         b.publish_discovery()
         topics = [t for t, _ in b.published]
         self.assertTrue(any("/select/" in t and t.endswith("/output_source/config") for t in topics))
-        self.assertTrue(any("/number/" in t and t.endswith("/bulk_voltage/config") for t in topics))
+        self.assertTrue(any("/text/" in t and t.endswith("/bulk_voltage/config") for t in topics))
+        self.assertTrue(any("/number/" in t and t.endswith("/total_charge_current/config") for t in topics))
         self.assertTrue(any("/switch/" in t and t.endswith("/alarm/config") for t in topics))
         self.assertTrue(any("/button/" in t and t.endswith("/battery_type_apply/config") for t in topics))
         removed = [t for t, p in b.published if p == ""]

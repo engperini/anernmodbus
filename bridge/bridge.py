@@ -41,6 +41,8 @@ WRITE_LOG = Path(os.environ.get("RWB1_WRITE_LOG", HERE / "writes.log"))
 LOCKS_TOPIC = "solar/rwb1_ble/locks"   # fixed topic used by the HA package
 PENDING_TTL = 120          # s: a prepared group C value expires
 BT_RESET_AFTER = 5         # consecutive failures before resetting the adapter
+GATT_TIMEOUT = 15          # seconds for one GATT step (notify on/off, write, disconnect)
+CYCLE_TIMEOUT = 180        # watchdog for a whole read/write cycle
 
 DEVICE = {
     "name": "Anern solar inverter",
@@ -141,15 +143,15 @@ class RWB1Session:
         await self.client.connect()
         if self.client.services.get_service(SERVICE_UUID) is None:
             raise ValueError("RWB1 GATT service not found")
-        await self.client.start_notify(INDICATE_UUID, self._on_data)
+        await asyncio.wait_for(self.client.start_notify(INDICATE_UUID, self._on_data), GATT_TIMEOUT)
         return self
 
     async def __aexit__(self, *_exc):
         # BlueZ on Debian 13 may drop the D-Bus link during teardown: never fatal.
         for step in (lambda: self.client.stop_notify(INDICATE_UUID), lambda: self.client.disconnect()):
             try:
-                await step()
-            except Exception as exc:  # noqa: BLE001
+                await asyncio.wait_for(step(), GATT_TIMEOUT)
+            except Exception as exc:  # noqa: BLE001  (includes TimeoutError)
                 LOG.debug("BLE teardown: %r", exc)
         return False
 
@@ -161,7 +163,8 @@ class RWB1Session:
         size = max(1, min(227, self.client.mtu_size - 6))
         parts = [encrypted[i:i + size] for i in range(0, len(encrypted), size)]
         for index, payload in enumerate(parts, 1):
-            await self.client.write_gatt_char(WRITE_UUID, bytes((index, len(parts), len(payload))) + payload, response=True)
+            await asyncio.wait_for(self.client.write_gatt_char(
+                WRITE_UUID, bytes((index, len(parts), len(payload))) + payload, response=True), GATT_TIMEOUT)
         await asyncio.wait_for(self._received.wait(), timeout=self.timeout)
         return decrypt_response(self._messages[-1], self.key)
 
@@ -441,8 +444,8 @@ class Bridge:
                 started = time.monotonic()
                 self.wake.clear()
                 try:
-                    await self.cycle()
-                except Exception as exc:  # noqa: BLE001
+                    await asyncio.wait_for(self.cycle(), CYCLE_TIMEOUT)
+                except Exception as exc:  # noqa: BLE001  (a stuck cycle ends as TimeoutError)
                     self.failures += 1
                     LOG.warning("BLE read failed (%d): %r", self.failures, exc)
                     if self.failures >= 3:
